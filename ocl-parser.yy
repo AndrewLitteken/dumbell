@@ -7,6 +7,7 @@
 typedef std::pair<int, bool> scope_info;
 
 std::vector<scope_info> scope_stack;
+
 int max_stack_size = 1;
 int indent_level = 0;
 bool ws_define = false;
@@ -129,7 +130,7 @@ stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN TOKEN_NEWLINE
     { if(!if_open) YYERROR;
       else if_open = false;
     }
-    | TOKEN_WHILE ws expr ws TOKEN_COLON TOKEN_NEWLINE indent line
+    | TOKEN_WHILE ws expr ws TOKEN_COLON TOKEN_NEWLINE indent fill_line
     | TOKEN_RETURN ws expr TOKEN_NEWLINE
     ;
 
@@ -160,7 +161,7 @@ indent_tab_opt: TOKEN_TAB indent_tab_opt
               ;
 
 indent_sp_opt : TOKEN_SPACE indent_sp_opt
-              { indent_count++; };
+              { indent_count++; }
               | /*empty*/
               ;
 
