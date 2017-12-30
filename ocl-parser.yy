@@ -15,6 +15,7 @@ bool spaces = false;
 bool if_open = false;
 int indent_count;
 
+bool check_indents(int);
 %}
 
 %skeleton "lalr1.cc"
@@ -116,12 +117,12 @@ fill_line   : decl
             ;
 
 decl: name ws TOKEN_ASSIGN ws TOKEN_FUNCTION TOKEN_LEFT_PAREN arg_list TOKEN_RIGHT_PAREN ws TOKEN_COLON TOKEN_NEWLINE indent fill_line
-    { }
     | name ws TOKEN_DEFINITION ws expr ws TOKEN_NEWLINE
     | name ws TOKEN_ASSIGN ws expr ws TOKEN_NEWLINE
     ;
 
 stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN TOKEN_NEWLINE
+    { if(if_open) if_open = false; }
     | TOKEN_IF ws expr ws TOKEN_COLON TOKEN_NEWLINE indent fill_line
     { if_open = true; }
     | TOKEN_ELSE TOKEN_SPACE TOKEN_IF ws expr ws TOKEN_COLON TOKEN_NEWLINE indent fill_line
@@ -131,7 +132,9 @@ stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN TOKEN_NEWLINE
       else if_open = false;
     }
     | TOKEN_WHILE ws expr ws TOKEN_COLON TOKEN_NEWLINE indent fill_line
+    { if(if_open) if_open = false; }
     | TOKEN_RETURN ws expr TOKEN_NEWLINE
+    { if(if_open) if_open = false; }
     ;
 
 expr: value_literals
@@ -143,26 +146,31 @@ indent  : TOKEN_TAB indent_tab_opt
             spaces = false;
          }
          if(spaces) YYERROR;
-         indent_count = 1;
+         check_indents($2+1);
+         return 1+$2;
         }
         | TOKEN_SPACE indent_sp_opt
         {if(!ws_define) {
             ws_define = true;
             spaces = true;
          }
+         std::cout<<"test\n";
          if(!spaces) YYERROR;
-         indent_count = 1;
+         check_indents($2+1);
+         return 1+$2;
         }
         ;
 
 indent_tab_opt: TOKEN_TAB indent_tab_opt
-              { indent_count++; }
+              { return 1+$2; }
               | /*empty*/
+              { return 0; }
               ;
 
 indent_sp_opt : TOKEN_SPACE indent_sp_opt
-              { indent_count++; }
+              { return 1+$2; }
               | /*empty*/
+              { return 0; }
               ;
 
 arg_list: arg TOKEN_COMMA arg_list
@@ -186,6 +194,33 @@ value_literals  : TOKEN_INTEGER_LITERAL
 name: TOKEN_IDENTIFIER
     ;
 %%
+
+bool check_indents(int indents){
+    int found = -1;
+    std::cout<<"checking indents\n";
+    if(indents < scope_stack.back().second){
+        for(int i = 0;i<scope_stack.size();i++){
+            if(indents == scope_stack[i].first){
+               found = i;
+               break;
+            }
+        }
+        if(found >= 0){
+            for(int i = scope_stack.size()-1;i>found;i--){
+                scope_stack.pop_back();
+            }
+        }
+        else return false;
+    }
+    else if(indents > scope_stack.back().second){
+        
+    }
+    else {
+
+    }
+    std::make_pair(indents, false);
+    return false;
+}
 
 void yy::Parser::error(const yy::location& l, const std::string& m){
     std::cout<<line_num<<" "<<m<<std::endl;
