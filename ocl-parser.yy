@@ -2,6 +2,18 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <utility>
+
+typedef std::pair<int, bool> scope_info;
+
+std::vector<scope_info> scope_stack;
+int max_stack_size = 1;
+int indent_level = 0;
+bool ws_define = false;
+bool spaces = false;
+bool if_open = false;
+int indent_count;
+
 %}
 
 %skeleton "lalr1.cc"
@@ -94,38 +106,61 @@ line_list   : line line_list
             ;
 
 line: decl
-    | low_stmt
+    | stmt
     | TOKEN_NEWLINE
     ;
 
-decl: name ws TOKEN_ASSIGN ws TOKEN_FUNCTION TOKEN_LEFT_PAREN arg_list TOKEN_RIGHT_PAREN ws TOKEN_COLON TOKEN_NEWLINE indent line
+fill_line   : decl
+            | stmt
+            ;
+
+decl: name ws TOKEN_ASSIGN ws TOKEN_FUNCTION TOKEN_LEFT_PAREN arg_list TOKEN_RIGHT_PAREN ws TOKEN_COLON TOKEN_NEWLINE indent fill_line
+    { }
+    | name ws TOKEN_DEFINITION ws expr ws TOKEN_NEWLINE
+    | name ws TOKEN_ASSIGN ws expr ws TOKEN_NEWLINE
     ;
 
-low_stmt: name ws TOKEN_DEFINITION ws expr ws TOKEN_NEWLINE
-        | name ws TOKEN_ASSIGN ws expr ws TOKEN_NEWLINE
-        | name TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN TOKEN_NEWLINE
-        | TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN TOKEN_NEWLINE
-        | TOKEN_IF ws expr ws TOKEN_COLON TOKEN_NEWLINE indent line
-        | TOKEN_WHILE ws expr ws TOKEN_COLON TOKEN_NEWLINE indent line
-        ;
+stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN TOKEN_NEWLINE
+    | TOKEN_IF ws expr ws TOKEN_COLON TOKEN_NEWLINE indent fill_line
+    { if_open = true; }
+    | TOKEN_ELSE TOKEN_SPACE TOKEN_IF ws expr ws TOKEN_COLON TOKEN_NEWLINE indent fill_line
+    { if(!if_open) YYERROR; }
+    | TOKEN_ELSE ws TOKEN_COLON TOKEN_NEWLINE indent fill_line
+    { if(!if_open) YYERROR;
+      else if_open = false;
+    }
+    | TOKEN_WHILE ws expr ws TOKEN_COLON TOKEN_NEWLINE indent line
+    | TOKEN_RETURN ws expr TOKEN_NEWLINE
+    ;
 
 expr: value_literals
     ;
 
 indent  : TOKEN_TAB indent_tab_opt
+        {if(!ws_define) {
+            ws_define = true;
+            spaces = false;
+         }
+         if(spaces) YYERROR;
+         indent_count = 1;
+        }
         | TOKEN_SPACE indent_sp_opt
+        {if(!ws_define) {
+            ws_define = true;
+            spaces = true;
+         }
+         if(!spaces) YYERROR;
+         indent_count = 1;
+        }
         ;
 
-//indent_opt  : TOKEN_TAB indent_tab_opt
-//            | TOKEN_SPACE indent_sp_opt
-//            | /*empty*/
-//            ;
-
 indent_tab_opt: TOKEN_TAB indent_tab_opt
+              { indent_count++; }
               | /*empty*/
               ;
 
 indent_sp_opt : TOKEN_SPACE indent_sp_opt
+              { indent_count++; };
               | /*empty*/
               ;
 
