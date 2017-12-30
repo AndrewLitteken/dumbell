@@ -1,0 +1,11 @@
+z := w + 7 + (4 * k);
+
+add_six := function(x):
+	return x + 6; 
+
+
+w := add_six(k);
+
+k = 9;
+
+print(z) 

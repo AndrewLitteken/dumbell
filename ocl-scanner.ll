@@ -25,6 +25,7 @@ WS [ \t]
 %%
 
 {WS}
+; { return token::TOKEN_SEMI; }
 if { return token::TOKEN_IF; }
 else { return token::TOKEN_ELSE; }
 for { return token::TOKEN_FOR; }

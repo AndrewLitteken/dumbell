@@ -66,6 +66,7 @@
 %token TOKEN_COLON
 %token TOKEN_COMMA
 %token TOKEN_ERROR
+%token TOKEN_SEMI
 
 %{
 #include "ocl-driver.h"
@@ -126,6 +127,7 @@ item: COMMENT
 	| COLON
 	| COMMA
 	| ERROR
+	| SEMI
     ;
 
 COMMENT: TOKEN_COMMENT {std::cout<<"comment"<<std::endl;};
@@ -172,6 +174,7 @@ RETURN: TOKEN_RETURN {std::cout<<"return"<<std::endl;};
 WHILE: TOKEN_WHILE {std::cout<<"while"<<std::endl;};
 COLON: TOKEN_COLON {std::cout<<"colon"<<std::endl;};
 COMMA: TOKEN_COMMA {std::cout<<"comma"<<std::endl;};
+SEMI: TOKEN_SEMI {std::cout<<"semi"<<std::endl;}; 
 ERROR: TOKEN_ERROR {std::cout<<"error"<<std::endl;};
 %%
 
