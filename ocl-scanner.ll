@@ -17,14 +17,22 @@ typedef yy::Parser::token_type token_type;
 %option c++
 %option yywrap nounput
 %option debug
+%{
+#define YY_USER_ACTION  yylloc->columns(yyleng);
+%}
 
 DIGIT [0-9]
 LETTER [a-zA-Z]
-WS [ \t]
+WS [ ]
 
 %%
+%{
+    // reset location
+    yylloc->step();
+%}
 
-{WS}
+{WS} { return token::TOKEN_SPACE; }
+\t {return token::TOKEN_TAB; }
 ; { return token::TOKEN_SEMI; }
 if { return token::TOKEN_IF; }
 else { return token::TOKEN_ELSE; }

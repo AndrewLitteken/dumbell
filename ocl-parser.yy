@@ -20,7 +20,11 @@
 
 %parse-param { class oclDriver& driver }
 
+%error-verbose
+
 %token TOKEN_EOF 0
+%token TOKEN_TAB
+%token TOKEN_SPACE
 %token TOKEN_COMMENT
 %token TOKEN_IDENTIFIER
 %token TOKEN_INTEGER_LITERAL
@@ -73,6 +77,8 @@
 #include "ocl-driver.h"
 #include "ocl-scanner.h"
 
+extern int line_num;
+
 #undef yylex
 #define yylex driver.lexer->lex
 
@@ -83,19 +89,44 @@
 program : decl_list
 
 decl_list   : decl decl_list
+            | TOKEN_NEWLINE decl_list
             | /*empty*/
             ;
 
-decl: name TOKEN_DEFINITION expr TOKEN_NEWLINE
-    | name TOKEN_ASSIGN expr TOKEN_NEWLINE
-    | stmt
+decl: name ws TOKEN_ASSIGN ws TOKEN_FUNCTION TOKEN_LEFT_PAREN arg_list TOKEN_RIGHT_PAREN ws TOKEN_COLON TOKEN_NEWLINE indent low_stmt
+    | low_stmt
     ;
 
-stmt: name TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN TOKEN_NEWLINE
-    | TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN TOKEN_NEWLINE
-    ;
+low_stmt: name ws TOKEN_DEFINITION ws expr ws TOKEN_NEWLINE
+        | name ws TOKEN_ASSIGN ws expr ws TOKEN_NEWLINE
+        | name TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN TOKEN_NEWLINE
+        | TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN TOKEN_NEWLINE
+        | TOKEN_IF ws expr ws TOKEN_COLON TOKEN_NEWLINE indent low_stmt
+        | TOKEN_WHILE ws expr ws TOKEN_COLON TOKEN_NEWLINE indent low_stmt
+        ;
 
 expr: value_literals
+    ;
+
+indent  : TOKEN_TAB indent_opt
+        | TOKEN_SPACE indent_opt
+        ;
+
+indent_opt: indent
+          | /*empty*/
+          ;
+arg_list: arg TOKEN_COMMA arg_list
+        | arg
+        | /*empty*/
+        ;
+
+arg : name
+    | name TOKEN_ASSIGN expr
+    ;
+
+ws  : TOKEN_TAB ws
+    | TOKEN_SPACE ws
+    | /*empty*/
     ;
 
 value_literals  : TOKEN_INTEGER_LITERAL
@@ -107,5 +138,6 @@ name: TOKEN_IDENTIFIER
 %%
 
 void yy::Parser::error(const yy::location& l, const std::string& m){
+    std::cout<<line_num<<" "<<m<<std::endl;
     driver.error(l, m);
 }
