@@ -86,23 +86,27 @@ extern int line_num;
 
 %%
 
-program : decl_list
+program : line_list
 
-decl_list   : decl decl_list
-            | TOKEN_NEWLINE decl_list
+line_list   : line line_list
+            | indent line line_list
             | /*empty*/
             ;
 
-decl: name ws TOKEN_ASSIGN ws TOKEN_FUNCTION TOKEN_LEFT_PAREN arg_list TOKEN_RIGHT_PAREN ws TOKEN_COLON TOKEN_NEWLINE indent low_stmt
+line: decl
     | low_stmt
+    | TOKEN_NEWLINE
+    ;
+
+decl: name ws TOKEN_ASSIGN ws TOKEN_FUNCTION TOKEN_LEFT_PAREN arg_list TOKEN_RIGHT_PAREN ws TOKEN_COLON TOKEN_NEWLINE indent line
     ;
 
 low_stmt: name ws TOKEN_DEFINITION ws expr ws TOKEN_NEWLINE
         | name ws TOKEN_ASSIGN ws expr ws TOKEN_NEWLINE
         | name TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN TOKEN_NEWLINE
         | TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN TOKEN_NEWLINE
-        | TOKEN_IF ws expr ws TOKEN_COLON TOKEN_NEWLINE indent low_stmt
-        | TOKEN_WHILE ws expr ws TOKEN_COLON TOKEN_NEWLINE indent low_stmt
+        | TOKEN_IF ws expr ws TOKEN_COLON TOKEN_NEWLINE indent line
+        | TOKEN_WHILE ws expr ws TOKEN_COLON TOKEN_NEWLINE indent line
         ;
 
 expr: value_literals
@@ -111,6 +115,11 @@ expr: value_literals
 indent  : TOKEN_TAB indent_tab_opt
         | TOKEN_SPACE indent_sp_opt
         ;
+
+//indent_opt  : TOKEN_TAB indent_tab_opt
+//            | TOKEN_SPACE indent_sp_opt
+//            | /*empty*/
+//            ;
 
 indent_tab_opt: TOKEN_TAB indent_tab_opt
               | /*empty*/
