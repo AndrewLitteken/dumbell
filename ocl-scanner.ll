@@ -38,7 +38,7 @@ or { return token::TOKEN_OR; }
 not { return token::TOKEN_NOT; }
 in { return token::TOKEN_IN; }
 (true|false) { return token::TOKEN_BOOL_LITERAL; }
-{DIGIT}+\.{DIGIT}* { return token::TOKEN_FP_LITERAL; }
+{DIGIT}*\.{DIGIT}* { return token::TOKEN_FP_LITERAL; }
 {DIGIT}+ {return token::TOKEN_INTEGER_LITERAL; }
 ({LETTER}|_)({LETTER}|{DIGIT}|_)* { return token::TOKEN_IDENTIFIER; }
 \( { return token::TOKEN_LEFT_PAREN; }
@@ -62,7 +62,7 @@ in { return token::TOKEN_IN; }
 \<= { return token::TOKEN_LE; }
 \> { return token::TOKEN_GT; }
 \>= { return token::TOKEN_GE; }
-:= { return token::TOKEN_DEFINE; }
+:= { return token::TOKEN_DEFINITION; }
 = { return token::TOKEN_ASSIGN; }
 == { return token::TOKEN_EQ; }
 != { return token::TOKEN_NE; }

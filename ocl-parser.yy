@@ -55,7 +55,7 @@
 %token TOKEN_OR
 %token TOKEN_IN
 %token TOKEN_ASSIGN
-%token TOKEN_DEFINE
+%token TOKEN_DEFINITION
 %token TOKEN_PRINT
 %token TOKEN_FUNCTION
 %token TOKEN_NEWLINE
@@ -79,106 +79,31 @@
 %}
 
 %%
-result_list: item result_list
-           | /*empty*/
-           ;
 
-item: COMMENT
-	| IDENTIFIER
-	| INTEGER_LITERAL
-	| BOOL_LITERAL
-	| FP_LITERAL
-	| RIGHT_PAREN
-	| LEFT_PAREN
-	| RIGHT_BRACKET
-	| LEFT_BRACKET
-	| RIGHT_BRACE
-	| LEFT_BRACE
-	| INCREMENT
-	| DECREMENT
-	| INCEQ
-	| DECEQ
-	| MULTEQ
-	| DIVEQ
-	| NOT
-	| EXPONENT
-	| MULTIPLY
-	| DIVIDE
-	| MOD
-	| ADD
-	| MINUS
-	| LT
-	| LE
-	| GT
-	| GE
-	| EQ
-	| NE
-	| AND
-	| OR
-	| IN
-	| ASSIGN
-    | DEFINE
-	| PRINT
-	| FUNCTION
-	| NEWLINE
-	| FOR
-	| IF
-	| ELSE
-	| RETURN
-	| WHILE
-	| COLON
-	| COMMA
-	| ERROR
-	| SEMI
+program : decl_list
+
+decl_list   : decl decl_list
+            | /*empty*/
+            ;
+
+decl: name TOKEN_DEFINITION expr TOKEN_NEWLINE
+    | name TOKEN_ASSIGN expr TOKEN_NEWLINE
+    | stmt
     ;
 
-COMMENT: TOKEN_COMMENT {std::cout<<"comment"<<std::endl;};
-IDENTIFIER: TOKEN_IDENTIFIER {std::cout<<"identifier"<<std::endl;};
-INTEGER_LITERAL: TOKEN_INTEGER_LITERAL {std::cout<<"integer"<<std::endl;};
-BOOL_LITERAL: TOKEN_BOOL_LITERAL {std::cout<<"boolean"<<std::endl;};
-FP_LITERAL: TOKEN_FP_LITERAL {std::cout<<"floating point"<<std::endl;};
-RIGHT_PAREN: TOKEN_RIGHT_PAREN {std::cout<<"right paren"<<std::endl;};
-LEFT_PAREN: TOKEN_LEFT_PAREN {std::cout<<"left paren"<<std::endl;};
-RIGHT_BRACKET: TOKEN_RIGHT_BRACKET {std::cout<<"right bracket"<<std::endl;};
-LEFT_BRACKET: TOKEN_LEFT_BRACKET {std::cout<<"left bracket"<<std::endl;};
-RIGHT_BRACE: TOKEN_RIGHT_BRACE {std::cout<<"right brace"<<std::endl;};
-LEFT_BRACE: TOKEN_LEFT_BRACE {std::cout<<"left brace"<<std::endl;};
-INCREMENT: TOKEN_INCREMENT {std::cout<<"increment"<<std::endl;};
-DECREMENT: TOKEN_DECREMENT {std::cout<<"decrement"<<std::endl;};
-INCEQ: TOKEN_INCEQ {std::cout<<"increment and assign"<<std::endl;};
-DECEQ: TOKEN_DECEQ {std::cout<<"decrement and assign"<<std::endl;};
-MULTEQ: TOKEN_MULTEQ {std::cout<<"multiply and assign"<<std::endl;};
-DIVEQ: TOKEN_DIVEQ {std::cout<<"divide and assign"<<std::endl;};
-NOT: TOKEN_NOT {std::cout<<"unary negation"<<std::endl;};
-EXPONENT: TOKEN_EXPONENT {std::cout<<"exponential"<<std::endl;};
-MULTIPLY: TOKEN_MULTIPLY {std::cout<<"multiply"<<std::endl;};
-DIVIDE: TOKEN_DIVIDE {std::cout<<"division"<<std::endl;};
-MOD: TOKEN_MOD {std::cout<<"modulus"<<std::endl;};
-ADD: TOKEN_ADD {std::cout<<"addtion"<<std::endl;};
-MINUS: TOKEN_MINUS {std::cout<<"subtraction"<<std::endl;};
-LT: TOKEN_LT {std::cout<<"less than"<<std::endl;};
-LE: TOKEN_LE {std::cout<<"less than or equal"<<std::endl;};
-GT: TOKEN_GT {std::cout<<"greater than"<<std::endl;};
-GE: TOKEN_GE {std::cout<<"greater than or equal"<<std::endl;};
-EQ: TOKEN_EQ {std::cout<<"equality"<<std::endl;};
-NE: TOKEN_NE {std::cout<<"not equal"<<std::endl;};
-AND: TOKEN_AND {std::cout<<"boolean and"<<std::endl;};
-OR: TOKEN_OR {std::cout<<"boolean or"<<std::endl;};
-IN: TOKEN_IN {std::cout<<"in"<<std::endl;};
-ASSIGN: TOKEN_ASSIGN {std::cout<<"assignment"<<std::endl;};
-DEFINE: TOKEN_DEFINE {std::cout<<"definition"<<std::endl;};
-PRINT: TOKEN_PRINT {std::cout<<"print"<<std::endl;};
-FUNCTION: TOKEN_FUNCTION {std::cout<<"function definition"<<std::endl;};
-NEWLINE: TOKEN_NEWLINE {std::cout<<"new line"<<std::endl;};
-FOR: TOKEN_FOR {std::cout<<"for"<<std::endl;};
-IF: TOKEN_IF {std::cout<<"if"<<std::endl;};
-ELSE: TOKEN_ELSE {std::cout<<"else"<<std::endl;};
-RETURN: TOKEN_RETURN {std::cout<<"return"<<std::endl;};
-WHILE: TOKEN_WHILE {std::cout<<"while"<<std::endl;};
-COLON: TOKEN_COLON {std::cout<<"colon"<<std::endl;};
-COMMA: TOKEN_COMMA {std::cout<<"comma"<<std::endl;};
-SEMI: TOKEN_SEMI {std::cout<<"semi"<<std::endl;}; 
-ERROR: TOKEN_ERROR {std::cout<<"error"<<std::endl;};
+stmt: name TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN TOKEN_NEWLINE
+    | TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN TOKEN_NEWLINE
+    ;
+
+expr: value_literals
+    ;
+
+value_literals  : TOKEN_INTEGER_LITERAL
+                | TOKEN_FP_LITERAL
+                ;
+
+name: TOKEN_IDENTIFIER
+    ;
 %%
 
 void yy::Parser::error(const yy::location& l, const std::string& m){
