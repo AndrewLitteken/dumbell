@@ -61,6 +61,7 @@ in { return token::TOKEN_IN; }
 \<= { return token::TOKEN_LE; }
 \> { return token::TOKEN_GT; }
 \>= { return token::TOKEN_GE; }
+:= { return token::TOKEN_DEFINE; }
 = { return token::TOKEN_ASSIGN; }
 == { return token::TOKEN_EQ; }
 != { return token::TOKEN_NE; }

@@ -55,6 +55,7 @@
 %token TOKEN_OR
 %token TOKEN_IN
 %token TOKEN_ASSIGN
+%token TOKEN_DEFINE
 %token TOKEN_PRINT
 %token TOKEN_FUNCTION
 %token TOKEN_NEWLINE
@@ -115,6 +116,7 @@ item: COMMENT
 	| OR
 	| IN
 	| ASSIGN
+    | DEFINE
 	| PRINT
 	| FUNCTION
 	| NEWLINE
@@ -162,6 +164,7 @@ AND: TOKEN_AND {std::cout<<"boolean and"<<std::endl;};
 OR: TOKEN_OR {std::cout<<"boolean or"<<std::endl;};
 IN: TOKEN_IN {std::cout<<"in"<<std::endl;};
 ASSIGN: TOKEN_ASSIGN {std::cout<<"assignment"<<std::endl;};
+DEFINE: TOKEN_DEFINE {std::cout<<"definition"<<std::endl;};
 PRINT: TOKEN_PRINT {std::cout<<"print"<<std::endl;};
 FUNCTION: TOKEN_FUNCTION {std::cout<<"function definition"<<std::endl;};
 NEWLINE: TOKEN_NEWLINE {std::cout<<"new line"<<std::endl;};
