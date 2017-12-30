@@ -108,13 +108,18 @@ low_stmt: name ws TOKEN_DEFINITION ws expr ws TOKEN_NEWLINE
 expr: value_literals
     ;
 
-indent  : TOKEN_TAB indent_opt
-        | TOKEN_SPACE indent_opt
+indent  : TOKEN_TAB indent_tab_opt
+        | TOKEN_SPACE indent_sp_opt
         ;
 
-indent_opt: indent
-          | /*empty*/
-          ;
+indent_tab_opt: TOKEN_TAB indent_tab_opt
+              | /*empty*/
+              ;
+
+indent_sp_opt : TOKEN_SPACE indent_sp_opt
+              | /*empty*/
+              ;
+
 arg_list: arg TOKEN_COMMA arg_list
         | arg
         | /*empty*/
