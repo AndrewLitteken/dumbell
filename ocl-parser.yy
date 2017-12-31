@@ -37,8 +37,8 @@ bool check_indents(int);
 %error-verbose
 
 %token TOKEN_EOF 0
-%token TOKEN_TAB
-%token TOKEN_SPACE
+%token TOKEN_INDENT_TAB
+%token TOKEN_INDENT_SPACE
 %token TOKEN_COMMENT
 %token TOKEN_IDENTIFIER
 %token TOKEN_INTEGER_LITERAL
@@ -116,25 +116,24 @@ fill_line   : decl
             | stmt
             ;
 
-decl: name ws TOKEN_ASSIGN ws TOKEN_FUNCTION TOKEN_LEFT_PAREN arg_list TOKEN_RIGHT_PAREN ws TOKEN_COLON suite
-    | name ws TOKEN_DEFINITION ws expr ws
-    | name ws TOKEN_ASSIGN ws expr ws
+decl: name TOKEN_ASSIGN TOKEN_FUNCTION TOKEN_LEFT_PAREN arg_list TOKEN_RIGHT_PAREN TOKEN_COLON suite
+    | name TOKEN_DEFINITION expr 
+    | name TOKEN_ASSIGN expr 
     ;
 
 stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
     { if(if_open) if_open = false; }
-    | TOKEN_IF ws expr ws TOKEN_COLON suite
+    | TOKEN_IF expr TOKEN_COLON suite
     { if_open = true; }
-    | TOKEN_ELSE TOKEN_SPACE TOKEN_IF ws expr ws TOKEN_COLON suite
+    | TOKEN_ELSE TOKEN_IF expr TOKEN_COLON suite
     { if(!if_open) YYERROR; }
-    | TOKEN_ELSE ws TOKEN_COLON suite
+    | TOKEN_ELSE TOKEN_COLON suite
     { if(!if_open) YYERROR;
       else if_open = false;
-      std::cout<<"test\n";
     }
-    | TOKEN_WHILE ws expr ws TOKEN_COLON suite
+    | TOKEN_WHILE expr TOKEN_COLON suite
     { if(if_open) if_open = false; }
-    | TOKEN_RETURN ws expr
+    | TOKEN_RETURN expr
     { if(if_open) if_open = false; }
     ;
 
@@ -206,37 +205,9 @@ expr_grp: TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
 		//| name TOKEN_LEFT_PAREN expr_list TOKEN_RIGHT_PAREN
         ;
 
-indent  : TOKEN_TAB indent_tab_opt
-        {if(!ws_define) {
-            ws_define = true;
-            spaces = false;
-         }
-         if(spaces) YYERROR;
-         check_indents($2+1);
-         $$ = 1+$2;
-        }
-        | TOKEN_SPACE indent_sp_opt
-        {if(!ws_define) {
-            ws_define = true;
-            spaces = true;
-         }
-         if(!spaces) YYERROR;
-         check_indents($2+1);
-         $$ = 1+$2;
-        }
+indent  : TOKEN_INDENT_TAB
+        | TOKEN_INDENT_SPACE
         ;
-
-indent_tab_opt: TOKEN_TAB indent_tab_opt
-              { return 1+$2; }
-              | /*empty*/
-              { return 0; }
-              ;
-
-indent_sp_opt : TOKEN_SPACE indent_sp_opt
-              { $$=1+$2; }
-              | /*empty*/
-              { $$=0; }
-              ;
 
 arg_list: arg TOKEN_COMMA arg_list
         | arg
@@ -245,12 +216,6 @@ arg_list: arg TOKEN_COMMA arg_list
 
 arg : name
     | name TOKEN_ASSIGN expr
-    ;
-
-ws  : TOKEN_TAB ws
-    | TOKEN_SPACE ws
-    {std::cout<<line_num<<std::endl;}
-    | /*empty*/
     ;
 
 value_literals  : TOKEN_INTEGER_LITERAL

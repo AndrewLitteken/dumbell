@@ -23,7 +23,7 @@ typedef yy::Parser::token_type token_type;
 
 DIGIT [0-9]
 LETTER [a-zA-Z]
-WS [ ]
+WS [ \t]
 
 %%
 %{
@@ -31,8 +31,9 @@ WS [ ]
     yylloc->step();
 %}
 
-{WS} { return token::TOKEN_SPACE; }
-\t {return token::TOKEN_TAB; }
+^[\t]+ {return token::TOKEN_INDENT_TAB; }
+^[ ]+ {return token::TOKEN_INDENT_SPACE; }
+{WS}
 ; { return token::TOKEN_SEMI; }
 if { return token::TOKEN_IF; }
 else { return token::TOKEN_ELSE; }
