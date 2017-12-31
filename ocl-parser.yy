@@ -6,7 +6,7 @@
 
 typedef std::pair<int, bool> scope_info;
 
-std::vector<scope_info> scope_stack;
+extern std::vector<scope_info> scope_stack;
 
 int max_stack_size = 1;
 int indent_level = 0;
@@ -107,8 +107,8 @@ line_list   : line line_list
             | /*empty*/
             ;
 
-line: decl
-    | stmt
+line: decl TOKEN_NEWLINE
+    | stmt TOKEN_NEWLINE
     | TOKEN_NEWLINE
     ;
 
@@ -116,29 +116,95 @@ fill_line   : decl
             | stmt
             ;
 
-decl: name ws TOKEN_ASSIGN ws TOKEN_FUNCTION TOKEN_LEFT_PAREN arg_list TOKEN_RIGHT_PAREN ws TOKEN_COLON TOKEN_NEWLINE indent fill_line
-    | name ws TOKEN_DEFINITION ws expr ws TOKEN_NEWLINE
-    | name ws TOKEN_ASSIGN ws expr ws TOKEN_NEWLINE
+decl: name ws TOKEN_ASSIGN ws TOKEN_FUNCTION TOKEN_LEFT_PAREN arg_list TOKEN_RIGHT_PAREN ws TOKEN_COLON suite
+    | name ws TOKEN_DEFINITION ws expr ws
+    | name ws TOKEN_ASSIGN ws expr ws
     ;
 
-stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN TOKEN_NEWLINE
+stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
     { if(if_open) if_open = false; }
-    | TOKEN_IF ws expr ws TOKEN_COLON TOKEN_NEWLINE indent fill_line
+    | TOKEN_IF ws expr ws TOKEN_COLON suite
     { if_open = true; }
-    | TOKEN_ELSE TOKEN_SPACE TOKEN_IF ws expr ws TOKEN_COLON TOKEN_NEWLINE indent fill_line
+    | TOKEN_ELSE TOKEN_SPACE TOKEN_IF ws expr ws TOKEN_COLON suite
     { if(!if_open) YYERROR; }
-    | TOKEN_ELSE ws TOKEN_COLON TOKEN_NEWLINE indent fill_line
+    | TOKEN_ELSE ws TOKEN_COLON suite
     { if(!if_open) YYERROR;
       else if_open = false;
+      std::cout<<"test\n";
     }
-    | TOKEN_WHILE ws expr ws TOKEN_COLON TOKEN_NEWLINE indent fill_line
+    | TOKEN_WHILE ws expr ws TOKEN_COLON suite
     { if(if_open) if_open = false; }
-    | TOKEN_RETURN ws expr TOKEN_NEWLINE
+    | TOKEN_RETURN ws expr
     { if(if_open) if_open = false; }
     ;
 
-expr: value_literals
-    ;
+suite: TOKEN_NEWLINE indent fill_line
+
+expr	: expr TOKEN_ASSIGN expr_or
+		| expr TOKEN_INCEQ expr_or
+		| expr TOKEN_DECEQ expr_or
+		| expr TOKEN_MULTEQ expr_or
+		| expr TOKEN_DIVEQ expr_or
+        | expr_or
+		;
+
+expr_or	: expr_or TOKEN_OR expr_and
+		| expr_and
+		;
+		
+expr_and: expr_and TOKEN_AND expr_eq
+		| expr_eq
+		;
+
+expr_eq	: expr_eq TOKEN_EQ expr_comp
+        | expr_eq TOKEN_NE expr_comp
+		| expr_comp
+		;
+
+expr_comp	: expr_comp TOKEN_LT expr_add
+		| expr_comp TOKEN_LE expr_add
+		| expr_comp TOKEN_GT expr_add
+		| expr_comp TOKEN_GE expr_add
+		| expr_add
+
+expr_add: expr_add TOKEN_ADD expr_mul
+		| expr_add TOKEN_MINUS expr_mul
+		| expr_mul
+		;
+
+expr_mul: expr_mul TOKEN_MULTIPLY expr_exp
+	 	| expr_mul TOKEN_DIVIDE expr_exp
+		| expr_mul TOKEN_MOD expr_exp
+		| expr_exp
+		;
+
+expr_exp: expr_exp TOKEN_EXPONENT expr_bool
+		| expr_bool
+		;
+
+expr_bool: TOKEN_NOT non_int_literal
+		| TOKEN_NOT name
+		| non_int_literal
+		| expr_minus
+		;
+
+expr_minus	: TOKEN_MINUS expr_int
+		| expr_int
+		;
+
+expr_int: value_literals
+		| expr_inc
+		;		
+
+expr_inc: expr_inc TOKEN_INCREMENT
+        | expr_inc TOKEN_DECREMENT
+		| expr_grp
+		;
+
+expr_grp: TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
+		| name
+		//| name TOKEN_LEFT_PAREN expr_list TOKEN_RIGHT_PAREN
+        ;
 
 indent  : TOKEN_TAB indent_tab_opt
         {if(!ws_define) {
@@ -147,17 +213,16 @@ indent  : TOKEN_TAB indent_tab_opt
          }
          if(spaces) YYERROR;
          check_indents($2+1);
-         return 1+$2;
+         $$ = 1+$2;
         }
         | TOKEN_SPACE indent_sp_opt
         {if(!ws_define) {
             ws_define = true;
             spaces = true;
          }
-         std::cout<<"test\n";
          if(!spaces) YYERROR;
          check_indents($2+1);
-         return 1+$2;
+         $$ = 1+$2;
         }
         ;
 
@@ -168,9 +233,9 @@ indent_tab_opt: TOKEN_TAB indent_tab_opt
               ;
 
 indent_sp_opt : TOKEN_SPACE indent_sp_opt
-              { return 1+$2; }
+              { $$=1+$2; }
               | /*empty*/
-              { return 0; }
+              { $$=0; }
               ;
 
 arg_list: arg TOKEN_COMMA arg_list
@@ -184,11 +249,15 @@ arg : name
 
 ws  : TOKEN_TAB ws
     | TOKEN_SPACE ws
+    {std::cout<<line_num<<std::endl;}
     | /*empty*/
     ;
 
 value_literals  : TOKEN_INTEGER_LITERAL
                 | TOKEN_FP_LITERAL
+                ;
+
+non_int_literal : TOKEN_BOOL_LITERAL
                 ;
 
 name: TOKEN_IDENTIFIER
@@ -197,7 +266,6 @@ name: TOKEN_IDENTIFIER
 
 bool check_indents(int indents){
     int found = -1;
-    std::cout<<"checking indents\n";
     if(indents < scope_stack.back().second){
         for(int i = 0;i<scope_stack.size();i++){
             if(indents == scope_stack[i].first){
