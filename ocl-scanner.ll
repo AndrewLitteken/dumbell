@@ -31,8 +31,8 @@ WS [ \t]
     yylloc->step();
 %}
 
-^[\t]+ {return token::TOKEN_INDENT_TAB; }
-^[ ]+ {return token::TOKEN_INDENT_SPACE; }
+^[\t]+ {yylval->str = new std::string(yytext, yyleng); return token::TOKEN_INDENT_TAB; }
+^[ ]+ {yylval->str = new std::string(yytext, yyleng); return token::TOKEN_INDENT_SPACE; }
 {WS}
 ; { return token::TOKEN_SEMI; }
 if { return token::TOKEN_IF; }

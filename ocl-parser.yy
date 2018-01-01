@@ -15,10 +15,15 @@ bool spaces = false;
 bool if_open = false;
 int indent_count;
 
-bool check_indents(int);
+bool check_indents(std::string);
 %}
 
 %skeleton "lalr1.cc"
+
+%union{
+    std::string* str;
+    int num;
+}
 
 %define "parser_class_name" {Parser}
 
@@ -37,8 +42,8 @@ bool check_indents(int);
 %error-verbose
 
 %token TOKEN_EOF 0
-%token TOKEN_INDENT_TAB
-%token TOKEN_INDENT_SPACE
+%token <str> TOKEN_INDENT_TAB
+%token <str> TOKEN_INDENT_SPACE
 %token TOKEN_COMMENT
 %token TOKEN_IDENTIFIER
 %token TOKEN_INTEGER_LITERAL
@@ -126,10 +131,9 @@ stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
     | TOKEN_IF expr TOKEN_COLON suite
     { if_open = true; }
     | TOKEN_ELSE TOKEN_IF expr TOKEN_COLON suite
-    { if(!if_open) YYERROR; }
+    { }
     | TOKEN_ELSE TOKEN_COLON suite
-    { if(!if_open) YYERROR;
-      else if_open = false;
+    { 
     }
     | TOKEN_WHILE expr TOKEN_COLON suite
     { if(if_open) if_open = false; }
@@ -206,7 +210,9 @@ expr_grp: TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
         ;
 
 indent  : TOKEN_INDENT_TAB
+        { check_indents(*$1);}
         | TOKEN_INDENT_SPACE
+        { check_indents(*$1);}
         ;
 
 arg_list: arg TOKEN_COMMA arg_list
@@ -229,30 +235,28 @@ name: TOKEN_IDENTIFIER
     ;
 %%
 
-bool check_indents(int indents){
+bool check_indents(std::string text){
     int found = -1;
-    if(indents < scope_stack.back().second){
+    if(text.length() < scope_stack.back().first){
         for(int i = 0;i<scope_stack.size();i++){
-            if(indents == scope_stack[i].first){
-               found = i;
-               break;
+            if(scope_stack[i].first == text.length()){
+                found = i;
+                break;
             }
         }
-        if(found >= 0){
-            for(int i = scope_stack.size()-1;i>found;i--){
-                scope_stack.pop_back();
-            }
+        if(found < 0) {
+            std::cout<<line_num<<": Indentation level not defined\n";
+            exit(1);
         }
-        else return false;
+        for(int i = scope_stack.size()-1;i>found;i--) scope_stack.pop_back();
     }
-    else if(indents > scope_stack.back().second){
-        
+    else if(text.length() > scope_stack.back().first){
+        scope_info new_line = std::make_pair(text.length(), false);
+        scope_stack.push_back(new_line);
+        found = scope_stack.size()-1;
     }
-    else {
-
-    }
-    std::make_pair(indents, false);
-    return false;
+    else found = scope_stack.size() - 1;
+    return found;
 }
 
 void yy::Parser::error(const yy::location& l, const std::string& m){
