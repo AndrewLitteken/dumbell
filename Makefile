@@ -1,4 +1,4 @@
-CC = g++
+CC = g++-7
 LDFLAGS = -L/usr/local/opt/flex/lib
 CPPFLAGS = -Wall -I/usr/local/opt/flex/include
 
