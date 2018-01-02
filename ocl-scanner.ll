@@ -38,6 +38,9 @@ WS [ \t]
 if { return token::TOKEN_IF; }
 else { return token::TOKEN_ELSE; }
 for { return token::TOKEN_FOR; }
+pass { return token::TOKEN_PASS; }
+break { return token::TOKEN_BREAK; }
+continue { return token::TOKEN_CONTINUE; }
 while { return token::TOKEN_WHILE; }
 return { return token::TOKEN_RETURN; }
 function { return token::TOKEN_FUNCTION; }

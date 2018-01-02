@@ -3,7 +3,7 @@
 
 #include "ocl-driver.h"
 
-typedef std::pair<int, bool> scope_info;
+typedef std::pair<int, std::vector<bool> > scope_info;
 std::vector<scope_info> scope_stack;
 
 int main(int argc, char * argv[]){
@@ -15,7 +15,10 @@ int main(int argc, char * argv[]){
     }
     //driver.trace_scanning = true;
     //driver.trace_parsing = true;
-    scope_stack.push_back(std::make_pair(0, false));
+    std::vector<bool> flags;
+    flags.push_back(false);
+    flags.push_back(false);
+    scope_stack.push_back(std::make_pair(0, flags));
     bool result = driver.parse_stream(infile, argv[1]);
     if(result){
         std::cout<<"Parsing successful"<<std::endl;

@@ -4,18 +4,20 @@
 #include <iostream>
 #include <utility>
 
-typedef std::pair<int, bool> scope_info;
+typedef std::pair<int, std::vector<bool> > scope_info;
 
 extern std::vector<scope_info> scope_stack;
 
 int max_stack_size = 1;
-int indent_level = 0;
+std::vector<int> indent_levels;
 bool ws_define = false;
 bool spaces = false;
-bool if_open = false;
-int indent_count;
+int indent_level_count = -1;
 
-bool check_indents(std::string);
+bool loop_available();
+int check_indents(std::string);
+void indent_levels_add(int);
+bool check_indent_levels();
 %}
 
 %skeleton "lalr1.cc"
@@ -87,11 +89,15 @@ bool check_indents(std::string);
 %token TOKEN_ELSE
 %token TOKEN_RETURN
 %token TOKEN_WHILE
+%token TOKEN_BREAK
+%token TOKEN_PASS
+%token TOKEN_CONTINUE
 %token TOKEN_COLON
 %token TOKEN_COMMA
 %token TOKEN_ERROR
 %token TOKEN_SEMI
 
+%type <num> indent begin_indent
 %{
 #include "ocl-driver.h"
 #include "ocl-scanner.h"
@@ -108,40 +114,92 @@ extern int line_num;
 program : line_list
 
 line_list   : line line_list
-            | indent line line_list
             | /*empty*/
             ;
 
-line: decl TOKEN_NEWLINE
-    | stmt TOKEN_NEWLINE
+line: begin_indent line_type TOKEN_NEWLINE
+    { 
+        indent_levels.clear(); 
+        indent_level_count = -1;
+    }
     | TOKEN_NEWLINE
     ;
 
-fill_line   : decl
+line_type   : decl
             | stmt
             ;
 
-decl: name TOKEN_ASSIGN TOKEN_FUNCTION TOKEN_LEFT_PAREN arg_list TOKEN_RIGHT_PAREN TOKEN_COLON suite
+fill_line   : decl
+            | stmt
+            | TOKEN_PASS
+            | TOKEN_NEWLINE fill_line
+            | TOKEN_NEWLINE indent fill_line
+            ;
+
+decl: name TOKEN_ASSIGN TOKEN_FUNCTION TOKEN_LEFT_PAREN arg_list TOKEN_RIGHT_PAREN TOKEN_COLON TOKEN_NEWLINE indent fill_line
     | name TOKEN_DEFINITION expr 
     | name TOKEN_ASSIGN expr 
     ;
 
 stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
-    { if(if_open) if_open = false; }
-    | TOKEN_IF expr TOKEN_COLON suite
-    { if_open = true; }
-    | TOKEN_ELSE TOKEN_IF expr TOKEN_COLON suite
-    { }
-    | TOKEN_ELSE TOKEN_COLON suite
+    { if(scope_stack.back().second[0]) scope_stack.back().second[0] = false; }
+    | TOKEN_IF expr TOKEN_COLON TOKEN_NEWLINE indent fill_line
     { 
+        if(!check_indent_levels()){
+            std::cout<<"Line "<<line_num-2<<": Indentation level does not match specification for an if statement\n";
+            exit(1);
+        }
+        scope_stack[$5-1].second[0] = true;
     }
-    | TOKEN_WHILE expr TOKEN_COLON suite
-    { if(if_open) if_open = false; }
+    | TOKEN_ELSE TOKEN_IF expr TOKEN_COLON TOKEN_NEWLINE indent fill_line
+    { 
+        if(!check_indent_levels()){
+            std::cout<<"Line "<<line_num-2<<": Indentation level does not match specification for an else if statement\n";
+            exit(1);
+        }
+        if(!scope_stack[$6-1].second[0]){
+            std::cout<<"Line "<<line_num-2<<": No If-statement defined at current scope\n";
+            exit(1);
+        }
+    }
+    | TOKEN_ELSE TOKEN_COLON TOKEN_NEWLINE indent fill_line
+    {    
+        if(!check_indent_levels()){
+            std::cout<<"Line "<<line_num-2<<": Indentation level does not match specification for an else statement\n";
+            exit(1);
+        }
+        if(!scope_stack[$4-1].second[0]){
+            std::cout<<"Line "<<line_num-2<<": No If-statement defined at current scope\n";
+            exit(1);
+        }
+        else{
+            scope_stack[$4-1].second[0] = false; 
+        } 
+    }
+    | TOKEN_WHILE expr TOKEN_COLON TOKEN_NEWLINE indent fill_line
+    {  
+        if(!check_indent_levels()){
+            std::cout<<"Line "<<line_num-2<<": Indentation level does not match specification for a while loop\n";
+            exit(1);
+        }
+        if(scope_stack[$5-1].second[0]) scope_stack[$5-1].second[0] = false;
+        scope_stack[$5].second[1] = true;
+    }
     | TOKEN_RETURN expr
-    { if(if_open) if_open = false; }
+    { if(scope_stack.back().second[0]) scope_stack.back().second[0] = false; }
+    | loop_control
+    { 
+      if(scope_stack.back().second[0]) scope_stack.back().second[0] = false; 
+      if(!loop_available()){
+            std::cout<<"Line "<<line_num<<": Loop not defined\n";
+            exit(1);
+      }
+    }
     ;
 
-suite: TOKEN_NEWLINE indent fill_line
+loop_control: TOKEN_CONTINUE
+            | TOKEN_BREAK
+            ;
 
 expr	: expr TOKEN_ASSIGN expr_or
 		| expr TOKEN_INCEQ expr_or
@@ -210,10 +268,52 @@ expr_grp: TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
         ;
 
 indent  : TOKEN_INDENT_TAB
-        { check_indents(*$1);}
+        { 
+          int indent_level = check_indents(*$1) - 1;
+          indent_levels_add(indent_level+1);
+          $$ = indent_level+1;
+        }
         | TOKEN_INDENT_SPACE
-        { check_indents(*$1);}
+        { 
+          int indent_level = check_indents(*$1) - 1;
+          indent_levels_add(indent_level+1);
+          $$ = indent_level+1;
+        }
         ;
+
+begin_indent: TOKEN_INDENT_TAB
+            {   if(!ws_define){
+                    spaces = false; 
+                    ws_define = true;
+                }
+                if(spaces){
+                    std::cout<<line_num<<": Mismatched tabs and spaces\n";
+                }
+                int indent_level = check_indents(*$1);
+                indent_levels_add(indent_level);
+                $$ = indent_level;
+            }
+            | TOKEN_INDENT_SPACE
+            {   if(!ws_define){
+                    spaces = true; 
+                    ws_define = true;
+                }
+                if(!spaces){
+                    std::cout<<line_num<<": Mismatched tabs and spaces\n";
+                }
+                int indent_level = check_indents(*$1);
+                indent_levels_add(indent_level);
+                $$ = indent_level;
+            }
+            | /*empty*/
+            {
+                for(int i = scope_stack.size()-1;i>0;i--){
+                    scope_stack.pop_back();
+                }
+                indent_levels_add(0);
+                $$ = 0;
+            }
+            ;
 
 arg_list: arg TOKEN_COMMA arg_list
         | arg
@@ -235,7 +335,14 @@ name: TOKEN_IDENTIFIER
     ;
 %%
 
-bool check_indents(std::string text){
+bool loop_available(){
+    for(int i = scope_stack.size()-1;i>=0;i--){
+        if(scope_stack[i].second[1]) return true;
+    }
+    return false;
+}
+
+int check_indents(std::string text){
     int found = -1;
     if(text.length() < scope_stack.back().first){
         for(int i = 0;i<scope_stack.size();i++){
@@ -251,12 +358,25 @@ bool check_indents(std::string text){
         for(int i = scope_stack.size()-1;i>found;i--) scope_stack.pop_back();
     }
     else if(text.length() > scope_stack.back().first){
-        scope_info new_line = std::make_pair(text.length(), false);
+        std::vector<bool> flags;
+        flags.push_back(false);
+        flags.push_back(false);
+        scope_info new_line = std::make_pair(text.length(), flags);
         scope_stack.push_back(new_line);
         found = scope_stack.size()-1;
     }
     else found = scope_stack.size() - 1;
     return found;
+}
+
+void indent_levels_add(int to_add){
+    indent_levels.push_back(to_add);
+}
+
+bool check_indent_levels(){
+    if(indent_level_count < 0) indent_level_count = indent_levels.size()-1;
+    indent_level_count--;
+    return indent_levels[indent_level_count] < indent_levels[indent_level_count+1];
 }
 
 void yy::Parser::error(const yy::location& l, const std::string& m){
