@@ -121,6 +121,7 @@ line: begin_indent line_type TOKEN_NEWLINE
     { 
         indent_levels.clear(); 
         indent_level_count = -1;
+        max_stack_size = 1;
     }
     | TOKEN_NEWLINE
     ;
@@ -269,12 +270,14 @@ expr_grp: TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
 
 indent  : TOKEN_INDENT_TAB
         { 
+          max_stack_size++;
           int indent_level = check_indents(*$1) - 1;
           indent_levels_add(indent_level+1);
           $$ = indent_level+1;
         }
         | TOKEN_INDENT_SPACE
         { 
+          max_stack_size++;
           int indent_level = check_indents(*$1) - 1;
           indent_levels_add(indent_level+1);
           $$ = indent_level+1;
@@ -355,9 +358,16 @@ int check_indents(std::string text){
             std::cout<<line_num<<": Indentation level not defined\n";
             exit(1);
         }
-        for(int i = scope_stack.size()-1;i>found;i--) scope_stack.pop_back();
+        max_stack_size = found+1;
+        for(int i = scope_stack.size()-1;i>found;i--){
+            scope_stack.pop_back();
+        }
     }
     else if(text.length() > scope_stack.back().first){
+        if(scope_stack.size() > max_stack_size){
+            std::cout<<"Line "<<line_num<<": Indent level not defined\n";
+            exit(1);
+        }
         std::vector<bool> flags;
         flags.push_back(false);
         flags.push_back(false);
