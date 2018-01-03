@@ -1,3 +1,6 @@
+#ifndef EXPR_H
+#define EXPR_H
+
 #include <string>
 
 typedef enum {
@@ -27,7 +30,7 @@ typedef enum {
 	EXPR_DEC,
 	EXPR_ARG,
 	EXPR_CALL
-}
+} expr_t;
 
 class Expr {
 	public:
@@ -40,4 +43,6 @@ class Expr {
 		std::string name; 
 		int literal_value;
 		std::string string_literal;
-}
+};
+
+#endif

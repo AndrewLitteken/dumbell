@@ -1,8 +1,7 @@
+#ifndef PARAM_LIST_H
+#define PARAM_LIST_H
 
-#ifndef _INC_TYPE
-#define _INC_TYPE
-#include "type.h"
-#endif 
+class Type;
 
 #include <string>
 
@@ -15,4 +14,6 @@ class ParamList {
 		Type *type;
 		ParamList *next;
 				
-}
+};
+
+#endif

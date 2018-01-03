@@ -1,10 +1,10 @@
 #include "type.h"
+#include "param_list.h"
 
-
-Type::Type(type_t k, Type *stype, param_list *param) {
+Type::Type(type_t k, Type *stype, ParamList *param) {
 	kind = k;
 	subtype = stype;
-	param_list = param;
+	params = param;
 }
 
 Type::~Type(void) {

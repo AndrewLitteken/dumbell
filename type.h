@@ -1,9 +1,7 @@
+#ifndef TYPE_H
+#define TYPE_H
 
-#ifndef _INC_PARAM_LIST
-#define _INC_PARAM_LIST
 #include "param_list.h"
-#endif
-
 
 typedef enum {
 	TYPE_INTEGER,
@@ -12,11 +10,11 @@ typedef enum {
 
 class Type {
 	public:
-		Type(type_t, Type *, param_list *);
+		Type(type_t, Type *, ParamList *);
 		~Type();
 	private:
 		type_t kind;
 		Type *subtype;
-		param_list *params; 
+		ParamList *params; 
 }; 
-
+#endif

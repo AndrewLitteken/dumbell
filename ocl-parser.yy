@@ -3,10 +3,13 @@
 #include <vector>
 #include <iostream>
 #include <utility>
+#include "line.h"
 
 typedef std::pair<int, std::vector<bool> > scope_info;
 
 extern std::vector<scope_info> scope_stack;
+Line *syntax_tree;
+std::vector<Line *> tails;
 
 int max_stack_size = 1;
 std::vector<int> indent_levels;
@@ -25,6 +28,8 @@ bool check_indent_levels();
 %union{
     std::string* str;
     int num;
+    class Line *line;
+    class Expr *expr;
 }
 
 %define "parser_class_name" {Parser}
@@ -98,6 +103,7 @@ bool check_indent_levels();
 %token TOKEN_SEMI
 
 %type <num> indent begin_indent
+%type <line> program line_list line
 %{
 #include "ocl-driver.h"
 #include "ocl-scanner.h"
@@ -112,6 +118,7 @@ extern int line_num;
 %%
 
 program : line_list
+        { $$ = syntax_tree; }
 
 line_list   : line line_list
             | /*empty*/
@@ -121,7 +128,6 @@ line: begin_indent line_type TOKEN_NEWLINE
     { 
         indent_levels.clear(); 
         indent_level_count = -1;
-        max_stack_size = 1;
     }
     | TOKEN_NEWLINE
     ;
@@ -314,6 +320,7 @@ begin_indent: TOKEN_INDENT_TAB
                     scope_stack.pop_back();
                 }
                 indent_levels_add(0);
+                max_stack_size = 1;
                 $$ = 0;
             }
             ;
