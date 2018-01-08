@@ -4,6 +4,7 @@
 #include <iostream>
 #include <utility>
 #include "line.h"
+#include "expr.h"
 
 typedef std::pair<int, std::vector<bool> > scope_info;
 
@@ -21,6 +22,7 @@ bool loop_available();
 int check_indents(std::string);
 void indent_levels_add(int);
 bool check_indent_levels();
+void add_to_syntax_tree(Line*, int);
 %}
 
 %skeleton "lalr1.cc"
@@ -103,7 +105,9 @@ bool check_indent_levels();
 %token TOKEN_SEMI
 
 %type <num> indent begin_indent
-%type <line> program line_list line
+%type <line> program line_list line fill_line stmt decl loop_control
+%type <expr> expr expr_or expr_and expr_eq expr_comp expr_add expr_mul expr_exp expr_bool expr_minus expr_int expr_grp non_int_literal arg_list
+%type <str> name
 %{
 #include "ocl-driver.h"
 #include "ocl-scanner.h"
@@ -118,10 +122,14 @@ extern int line_num;
 %%
 
 program : line_list
-        { $$ = syntax_tree; }
+        { $$ = $1; }
 
 line_list   : line line_list
+            {
+                $$ = $1;
+            }
             | /*empty*/
+            { }
             ;
 
 line: begin_indent line_type TOKEN_NEWLINE
@@ -130,6 +138,7 @@ line: begin_indent line_type TOKEN_NEWLINE
         indent_level_count = -1;
     }
     | TOKEN_NEWLINE
+    { }
     ;
 
 line_type   : decl
@@ -137,19 +146,59 @@ line_type   : decl
             ;
 
 fill_line   : decl
+            {
+                $$ = $1;
+            }
             | stmt
+            {
+                $$ = $1;
+            }
             | TOKEN_PASS
-            | TOKEN_NEWLINE fill_line
+            {
+                Line *line_to_add = new Line(LINE_PASS, NULL, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, line_num);
+                add_to_syntax_tree(line_to_add, -1);    
+                $$ = line_to_add;
+            }
             | TOKEN_NEWLINE indent fill_line
+            {
+                $$ = $3;
+            }
             ;
 
 decl: name TOKEN_ASSIGN TOKEN_FUNCTION TOKEN_LEFT_PAREN arg_list TOKEN_RIGHT_PAREN TOKEN_COLON TOKEN_NEWLINE indent fill_line
+    {
+        if(scope_stack.back().second[0]) scope_stack.back().second[0] = false;
+        if(!check_indent_levels()){
+            std::cout<<"Line "<<line_num-2<<": Indentation level does not match specification for a function definition\n";
+            exit(1);
+        }
+        Line *line_to_add = new Line(LINE_FUNC_DEF, *$1, nullptr, nullptr, $5, nullptr, $10, nullptr, line_num);
+        add_to_syntax_tree(line_to_add, -1);    
+        $$ = line_to_add;
+    }
     | name TOKEN_DEFINITION expr 
+    {
+        if(scope_stack.back().second[0]) scope_stack.back().second[0] = false;
+        Line *line_to_add = new Line(LINE_FUNC_DEF, *$1, nullptr, nullptr, $3, nullptr, nullptr, nullptr, line_num);
+        add_to_syntax_tree(line_to_add, -1);    
+        $$ = line_to_add;
+    }
     | name TOKEN_ASSIGN expr 
+    {
+        if(scope_stack.back().second[0]) scope_stack.back().second[0] = false;
+        Line *line_to_add = new Line(LINE_EXPR, *$1, nullptr, nullptr, $3, nullptr, nullptr, nullptr, line_num);
+        add_to_syntax_tree(line_to_add, -1);    
+        $$ = line_to_add;
+    }
     ;
 
 stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
-    { if(scope_stack.back().second[0]) scope_stack.back().second[0] = false; }
+    {
+        if(scope_stack.back().second[0]) scope_stack.back().second[0] = false; 
+        Line *line_to_add = new Line(LINE_PRINT, NULL, nullptr, nullptr, $3, nullptr, nullptr, nullptr, line_num);
+        add_to_syntax_tree(line_to_add, -1);    
+        $$ = line_to_add;
+    }
     | TOKEN_IF expr TOKEN_COLON TOKEN_NEWLINE indent fill_line
     { 
         if(!check_indent_levels()){
@@ -157,6 +206,9 @@ stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
             exit(1);
         }
         scope_stack[$5-1].second[0] = true;
+        Line *line_to_add = new Line(LINE_IF, NULL, nullptr, nullptr, $2, nullptr, $6, nullptr, line_num);
+        add_to_syntax_tree(line_to_add, $5-1);
+        $$ = line_to_add;
     }
     | TOKEN_ELSE TOKEN_IF expr TOKEN_COLON TOKEN_NEWLINE indent fill_line
     { 
@@ -168,6 +220,9 @@ stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
             std::cout<<"Line "<<line_num-2<<": No If-statement defined at current scope\n";
             exit(1);
         }
+        Line *line_to_add = new Line(LINE_ELSE_IF, NULL, nullptr, nullptr, $3, nullptr, $7, nullptr, line_num);
+        add_to_syntax_tree(line_to_add, $6-1);
+        $$ = line_to_add;
     }
     | TOKEN_ELSE TOKEN_COLON TOKEN_NEWLINE indent fill_line
     {    
@@ -182,6 +237,9 @@ stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
         else{
             scope_stack[$4-1].second[0] = false; 
         } 
+        Line *line_to_add = new Line(LINE_ELSE, NULL, nullptr, nullptr, nullptr, nullptr, $5, nullptr, line_num);
+        add_to_syntax_tree(line_to_add, $4-1);
+        $$ = line_to_add;
     }
     | TOKEN_WHILE expr TOKEN_COLON TOKEN_NEWLINE indent fill_line
     {  
@@ -191,21 +249,40 @@ stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
         }
         if(scope_stack[$5-1].second[0]) scope_stack[$5-1].second[0] = false;
         scope_stack[$5].second[1] = true;
+        Line *line_to_add = new Line(LINE_WHILE, NULL, nullptr, nullptr, $2, nullptr, $6, nullptr, line_num);
+        add_to_syntax_tree(line_to_add, $5-1);
+        $$ = line_to_add;
     }
     | TOKEN_RETURN expr
-    { if(scope_stack.back().second[0]) scope_stack.back().second[0] = false; }
+    {
+        if(scope_stack.back().second[0]) scope_stack.back().second[0] = false;
+        Line *line_to_add = new Line(LINE_RETURN, NULL, nullptr, nullptr, $2, nullptr, nullptr, nullptr, line_num);
+        add_to_syntax_tree(line_to_add, -1);    
+        $$ = line_to_add;
+    }
     | loop_control
     { 
-      if(scope_stack.back().second[0]) scope_stack.back().second[0] = false; 
-      if(!loop_available()){
+        if(scope_stack.back().second[0]) scope_stack.back().second[0] = false;
+        if(!loop_available()){
             std::cout<<"Line "<<line_num<<": Loop not defined\n";
             exit(1);
-      }
+        }
+        $$ = $1;
     }
     ;
 
-loop_control: TOKEN_CONTINUE
+loop_control: TOKEN_CONTINUE 
+            {
+                Line *line_to_add = new Line(LINE_CONTINUE, NULL, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, line_num);
+        add_to_syntax_tree(line_to_add, -1);    
+                $$ = line_to_add;
+            }
             | TOKEN_BREAK
+            {
+                Line *line_to_add = new Line(LINE_BREAK, NULL, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, line_num);
+                add_to_syntax_tree(line_to_add, -1);    
+                $$ = line_to_add;
+            }
             ;
 
 expr	: expr TOKEN_ASSIGN expr_or
@@ -229,11 +306,11 @@ expr_eq	: expr_eq TOKEN_EQ expr_comp
 		| expr_comp
 		;
 
-expr_comp	: expr_comp TOKEN_LT expr_add
-		| expr_comp TOKEN_LE expr_add
-		| expr_comp TOKEN_GT expr_add
-		| expr_comp TOKEN_GE expr_add
-		| expr_add
+expr_comp   : expr_comp TOKEN_LT expr_add
+		    | expr_comp TOKEN_LE expr_add
+		    | expr_comp TOKEN_GT expr_add
+		    | expr_comp TOKEN_GE expr_add
+		    | expr_add
 
 expr_add: expr_add TOKEN_ADD expr_mul
 		| expr_add TOKEN_MINUS expr_mul
@@ -250,15 +327,15 @@ expr_exp: expr_exp TOKEN_EXPONENT expr_bool
 		| expr_bool
 		;
 
-expr_bool: TOKEN_NOT non_int_literal
-		| TOKEN_NOT name
-		| non_int_literal
-		| expr_minus
-		;
+expr_bool   : TOKEN_NOT non_int_literal
+		    | TOKEN_NOT name
+		    | non_int_literal
+		    | expr_minus
+		    ;
 
 expr_minus	: TOKEN_MINUS expr_int
-		| expr_int
-		;
+		    | expr_int
+		    ;
 
 expr_int: value_literals
 		| expr_inc
@@ -331,7 +408,8 @@ arg_list: arg TOKEN_COMMA arg_list
         ;
 
 arg : name
-    | name TOKEN_ASSIGN expr
+    | name TOKEN_ASSIGN value_literals
+    | name TOKEN_ASSIGN non_int_literal
     ;
 
 value_literals  : TOKEN_INTEGER_LITERAL
@@ -368,6 +446,7 @@ int check_indents(std::string text){
         max_stack_size = found+1;
         for(int i = scope_stack.size()-1;i>found;i--){
             scope_stack.pop_back();
+            tails.pop_back();
         }
     }
     else if(text.length() > scope_stack.back().first){
@@ -394,6 +473,42 @@ bool check_indent_levels(){
     if(indent_level_count < 0) indent_level_count = indent_levels.size()-1;
     indent_level_count--;
     return indent_levels[indent_level_count] < indent_levels[indent_level_count+1];
+}
+
+void add_to_syntax_tree(Line *l, int level){
+    if(level < 0) {
+       for(int i = tails.size()-1;i<scope_stack.size()-1;i++){
+            tails.push_back(nullptr);
+        }
+        tails.push_back(l);
+    }
+    else{
+        switch(l->kind){
+            case LINE_PRINT:
+            case LINE_RETURN:
+            case LINE_BREAK:
+            case LINE_PASS:
+            case LINE_EXPR:
+            case LINE_CONTINUE:
+            case LINE_VAR_DEF:
+                tails.back()->next = l;
+                tails.back() = l;
+                break;
+            case LINE_IF:
+            case LINE_FOR:
+            case LINE_WHILE:
+            case LINE_FUNC_DEF:
+                tails[level]->next = l;
+                tails[level] = l;
+                break;
+            case LINE_ELSE_IF:
+            case LINE_ELSE:
+                Line *nested = tails[level];
+                while(nested->else_body) nested = nested->else_body;
+                nested->else_body = l;
+                break;
+        }
+    }
 }
 
 void yy::Parser::error(const yy::location& l, const std::string& m){

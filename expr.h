@@ -29,20 +29,30 @@ typedef enum {
 	EXPR_INC,
 	EXPR_DEC,
 	EXPR_ARG,
-	EXPR_CALL
+	EXPR_CALL,
+    EXPR_NAME,
+    EXPR_INT_LITERAL,
+    EXPR_FP_LITERAL,
+    EXPR_BOOL_LITERAL,
+    EXPR_STRING_LITERAL
 } expr_t;
 
 class Expr {
 	public:
-		Expr(expr_t, Expr *, Expr *, const std::string, int, const std::string);
-		~Expr();
-	private:
+		Expr(expr_t, Expr *, Expr *, int);
+		Expr(expr_t, const std::string, int);
+        Expr(expr_t, int, int);
+        Expr(expr_t, bool, int);
+        Expr(expr_t, double, int);
+        ~Expr();
 		expr_t kind;
 		Expr *left;
 		Expr *right;
 		std::string name; 
 		int literal_value;
+        double literal_fp_value;
 		std::string string_literal;
+        int line_num;
 };
 
 #endif

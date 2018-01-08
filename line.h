@@ -9,10 +9,13 @@ typedef enum {
     LINE_VAR_DEF,
     LINE_FUNC_DEF,
     LINE_EXPR,
-    LINE_IF_ELSE,
+    LINE_IF,
+    LINE_ELSE_IF,
+    LINE_ELSE,
     LINE_FOR,
     LINE_WHILE,
     LINE_PRINT,
+    LINE_RETURN,
     LINE_BREAK,
     LINE_PASS,
     LINE_CONTINUE
@@ -27,6 +30,7 @@ class Line {
         Type *type;
         Expr *init_expr;
         Expr *expr;
+        Expr *next_expr;
         Line *body;
         Line *else_body;
         Line *next;
