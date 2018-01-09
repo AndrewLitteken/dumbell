@@ -635,6 +635,7 @@ int check_indents(std::string text){
         flags.push_back(false);
         scope_info new_line = std::make_pair(text.length(), flags);
         scope_stack.push_back(new_line);
+        tails.push_back(nullptr);
         found = scope_stack.size()-1;
     }
     else found = scope_stack.size() - 1;
@@ -652,13 +653,6 @@ bool check_indent_levels(){
 }
 
 void add_to_syntax_tree(Line *l, int level){
-    if(level < 0 && tails.size() < scope_stack.size()) {
-        for(int i = tails.size();i<scope_stack.size();i++){
-            tails.push_back(nullptr);
-        }
-        tails.push_back(l);
-    }
-    else{
         switch(l->kind){
             case LINE_PRINT:
             case LINE_RETURN:
@@ -680,10 +674,10 @@ void add_to_syntax_tree(Line *l, int level){
             case LINE_ELSE_IF:
             case LINE_ELSE:
                 Line *nested = tails[level];
+                while(nested->else_body) nested = nested->else_body;
                 nested->else_body = l;
                 break;
         }
-    }
 }
 
 void yy::Parser::error(const yy::location& l, const std::string& m){
