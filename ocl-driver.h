@@ -2,6 +2,7 @@
 #define OCL_DRIVER_H
 #include <string>
 #include <vector>
+#include "line.h"
 
 namespace yy {
 
@@ -23,11 +24,14 @@ class oclDriver {
 
         bool parse_file(const std::string& filename);
 
+        void print();
+
         void error(const class location& l, const std::string& m);
         void error(const std::string& m);
 
         int result;
         std::vector<std::string> tokens;
+        Line *syntax_tree;
         class Scanner* lexer;
 
 };

@@ -1,14 +1,16 @@
 #include "expr.h"
+#include <iostream>
+#include <string>
 
 
 Expr::Expr(expr_t k, Expr *l, Expr *r, int ln) {
 	kind = k;
 	left = l;
 	right = r;
-	name = nullptr;
+	name = std::string();
 	literal_value = (int) NULL;
     literal_fp_value = (double) NULL;
-	string_literal = nullptr;
+	string_literal = std::string();
     line_num = ln;
 }
 
@@ -17,11 +19,11 @@ Expr::Expr(expr_t k, const std::string s, int ln) {
     kind = k;
     if(k == EXPR_NAME) {
         name = s;
-        string_literal = nullptr;
+        string_literal = std::string();
     }
     else {
         string_literal = s;
-        name = nullptr;
+        name = std::string();
     }
     literal_value = (int) NULL;
     left = nullptr;
@@ -36,8 +38,8 @@ Expr::Expr(expr_t k, int i, int ln) {
     left = nullptr;
     right = nullptr;
     literal_fp_value = (double) NULL;
-    name = nullptr;
-    string_literal = nullptr;
+    name = std::string();
+    string_literal = std::string();
 }
 
 Expr::Expr(expr_t k, bool i, int ln) {
@@ -46,8 +48,8 @@ Expr::Expr(expr_t k, bool i, int ln) {
     left = nullptr;
     right = nullptr;
     literal_fp_value = (double) NULL;
-    name = nullptr;
-    string_literal = nullptr;
+    name = std::string();
+    string_literal = std::string();
 }
 
 Expr::Expr(expr_t k, double d, int ln) {
@@ -56,8 +58,8 @@ Expr::Expr(expr_t k, double d, int ln) {
     left = nullptr;
     right = nullptr;
     literal_fp_value = d;
-    name = nullptr;
-    string_literal = nullptr;
+    name = std::string();
+    string_literal = std::string();
 }
 
 Expr::~Expr(void) {

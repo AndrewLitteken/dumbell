@@ -35,6 +35,9 @@ bool oclDriver::parse_string(const std::string &input, const std::string& sname)
     return parse_stream(iss, sname);
 }
 
+void oclDriver::print(){
+    syntax_tree->print(0);
+}
 
 void oclDriver::error(const class location& l, const std::string& m){
     //std::cerr << "Line " << (int) l << ": "<< m << std::endl;

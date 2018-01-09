@@ -25,6 +25,7 @@ class Line {
     public:
         Line(line_t, std::string, Type *, Expr*, Expr *, Expr *, Line *, Line *, int); 
         ~Line();
+        void print(int);
         line_t kind;
         std::string name;
         Type *type;

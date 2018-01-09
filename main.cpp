@@ -5,6 +5,7 @@
 
 typedef std::pair<int, std::vector<bool> > scope_info;
 std::vector<scope_info> scope_stack;
+std::vector<Line *> tails;
 
 int main(int argc, char * argv[]){
     yy::oclDriver driver;
@@ -18,10 +19,12 @@ int main(int argc, char * argv[]){
     std::vector<bool> flags;
     flags.push_back(false);
     flags.push_back(false);
+    tails.push_back(nullptr);
     scope_stack.push_back(std::make_pair(0, flags));
     bool result = driver.parse_stream(infile, argv[1]);
     if(result){
         std::cout<<"Parsing successful"<<std::endl;
+        if(driver.syntax_tree) driver.print();
         return 0;
     }
     else std::cout<<"Parsing unsuccessful"<<std::endl;

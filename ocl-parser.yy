@@ -9,8 +9,7 @@
 typedef std::pair<int, std::vector<bool> > scope_info;
 
 extern std::vector<scope_info> scope_stack;
-Line *syntax_tree;
-std::vector<Line *> tails;
+extern std::vector<Line *> tails;
 
 int max_stack_size = 1;
 std::vector<int> indent_levels;
@@ -54,10 +53,10 @@ void add_to_syntax_tree(Line*, int);
 %token <str> TOKEN_INDENT_TAB
 %token <str> TOKEN_INDENT_SPACE
 %token TOKEN_COMMENT
-%token TOKEN_IDENTIFIER
-%token TOKEN_INTEGER_LITERAL
-%token TOKEN_BOOL_LITERAL
-%token TOKEN_FP_LITERAL
+%token <str> TOKEN_IDENTIFIER
+%token <str> TOKEN_INTEGER_LITERAL
+%token <str> TOKEN_BOOL_LITERAL
+%token <str> TOKEN_FP_LITERAL
 %token TOKEN_RIGHT_PAREN
 %token TOKEN_LEFT_PAREN
 %token TOKEN_RIGHT_BRACKET
@@ -105,8 +104,8 @@ void add_to_syntax_tree(Line*, int);
 %token TOKEN_SEMI
 
 %type <num> indent begin_indent
-%type <line> program line_list line fill_line stmt decl loop_control
-%type <expr> expr expr_or expr_and expr_eq expr_comp expr_add expr_mul expr_exp expr_bool expr_minus expr_int expr_grp non_int_literal arg_list
+%type <line> program line_list line fill_line stmt decl loop_control line_type
+%type <expr> expr expr_or expr_and expr_eq expr_comp expr_add expr_mul expr_exp expr_bool expr_minus expr_int expr_inc expr_grp value_literals non_int_literal arg_list
 %type <str> name
 %{
 #include "ocl-driver.h"
@@ -122,7 +121,7 @@ extern int line_num;
 %%
 
 program : line_list
-        { $$ = $1; }
+        { driver.syntax_tree = $1; }
 
 line_list   : line line_list
             {
@@ -136,13 +135,20 @@ line: begin_indent line_type TOKEN_NEWLINE
     { 
         indent_levels.clear(); 
         indent_level_count = -1;
+        $$ = $2;
     }
     | TOKEN_NEWLINE
     { }
     ;
 
 line_type   : decl
+            {
+                $$ = $1;
+            }
             | stmt
+            {
+                $$ = $1;
+            }
             ;
 
 fill_line   : decl
@@ -155,7 +161,7 @@ fill_line   : decl
             }
             | TOKEN_PASS
             {
-                Line *line_to_add = new Line(LINE_PASS, NULL, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, line_num);
+                Line *line_to_add = new Line(LINE_PASS, std::string(), nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, line_num);
                 add_to_syntax_tree(line_to_add, -1);    
                 $$ = line_to_add;
             }
@@ -173,21 +179,21 @@ decl: name TOKEN_ASSIGN TOKEN_FUNCTION TOKEN_LEFT_PAREN arg_list TOKEN_RIGHT_PAR
             exit(1);
         }
         Line *line_to_add = new Line(LINE_FUNC_DEF, *$1, nullptr, nullptr, $5, nullptr, $10, nullptr, line_num);
-        add_to_syntax_tree(line_to_add, -1);    
+        add_to_syntax_tree(line_to_add, $9-1);
         $$ = line_to_add;
     }
     | name TOKEN_DEFINITION expr 
     {
         if(scope_stack.back().second[0]) scope_stack.back().second[0] = false;
-        Line *line_to_add = new Line(LINE_FUNC_DEF, *$1, nullptr, nullptr, $3, nullptr, nullptr, nullptr, line_num);
+        Line *line_to_add = new Line(LINE_VAR_DEF, *$1, nullptr, nullptr, $3, nullptr, nullptr, nullptr, line_num);
         add_to_syntax_tree(line_to_add, -1);    
         $$ = line_to_add;
     }
-    | name TOKEN_ASSIGN expr 
+    | expr 
     {
         if(scope_stack.back().second[0]) scope_stack.back().second[0] = false;
-        Line *line_to_add = new Line(LINE_EXPR, *$1, nullptr, nullptr, $3, nullptr, nullptr, nullptr, line_num);
-        add_to_syntax_tree(line_to_add, -1);    
+        Line *line_to_add = new Line(LINE_EXPR, std::string(), nullptr, nullptr, $1, nullptr, nullptr, nullptr, line_num);
+        add_to_syntax_tree(line_to_add, -1);
         $$ = line_to_add;
     }
     ;
@@ -195,7 +201,7 @@ decl: name TOKEN_ASSIGN TOKEN_FUNCTION TOKEN_LEFT_PAREN arg_list TOKEN_RIGHT_PAR
 stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
     {
         if(scope_stack.back().second[0]) scope_stack.back().second[0] = false; 
-        Line *line_to_add = new Line(LINE_PRINT, NULL, nullptr, nullptr, $3, nullptr, nullptr, nullptr, line_num);
+        Line *line_to_add = new Line(LINE_PRINT, std::string(), nullptr, nullptr, $3, nullptr, nullptr, nullptr, line_num);
         add_to_syntax_tree(line_to_add, -1);    
         $$ = line_to_add;
     }
@@ -206,7 +212,7 @@ stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
             exit(1);
         }
         scope_stack[$5-1].second[0] = true;
-        Line *line_to_add = new Line(LINE_IF, NULL, nullptr, nullptr, $2, nullptr, $6, nullptr, line_num);
+        Line *line_to_add = new Line(LINE_IF, std::string(), nullptr, nullptr, $2, nullptr, $6, nullptr, line_num);
         add_to_syntax_tree(line_to_add, $5-1);
         $$ = line_to_add;
     }
@@ -220,7 +226,7 @@ stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
             std::cout<<"Line "<<line_num-2<<": No If-statement defined at current scope\n";
             exit(1);
         }
-        Line *line_to_add = new Line(LINE_ELSE_IF, NULL, nullptr, nullptr, $3, nullptr, $7, nullptr, line_num);
+        Line *line_to_add = new Line(LINE_ELSE_IF, std::string(), nullptr, nullptr, $3, nullptr, $7, nullptr, line_num);
         add_to_syntax_tree(line_to_add, $6-1);
         $$ = line_to_add;
     }
@@ -237,7 +243,7 @@ stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
         else{
             scope_stack[$4-1].second[0] = false; 
         } 
-        Line *line_to_add = new Line(LINE_ELSE, NULL, nullptr, nullptr, nullptr, nullptr, $5, nullptr, line_num);
+        Line *line_to_add = new Line(LINE_ELSE, std::string(), nullptr, nullptr, nullptr, nullptr, $5, nullptr, line_num);
         add_to_syntax_tree(line_to_add, $4-1);
         $$ = line_to_add;
     }
@@ -249,14 +255,14 @@ stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
         }
         if(scope_stack[$5-1].second[0]) scope_stack[$5-1].second[0] = false;
         scope_stack[$5].second[1] = true;
-        Line *line_to_add = new Line(LINE_WHILE, NULL, nullptr, nullptr, $2, nullptr, $6, nullptr, line_num);
+        Line *line_to_add = new Line(LINE_WHILE, std::string(), nullptr, nullptr, $2, nullptr, $6, nullptr, line_num);
         add_to_syntax_tree(line_to_add, $5-1);
         $$ = line_to_add;
     }
     | TOKEN_RETURN expr
     {
         if(scope_stack.back().second[0]) scope_stack.back().second[0] = false;
-        Line *line_to_add = new Line(LINE_RETURN, NULL, nullptr, nullptr, $2, nullptr, nullptr, nullptr, line_num);
+        Line *line_to_add = new Line(LINE_RETURN, std::string(), nullptr, nullptr, $2, nullptr, nullptr, nullptr, line_num);
         add_to_syntax_tree(line_to_add, -1);    
         $$ = line_to_add;
     }
@@ -273,82 +279,227 @@ stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
 
 loop_control: TOKEN_CONTINUE 
             {
-                Line *line_to_add = new Line(LINE_CONTINUE, NULL, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, line_num);
+                Line *line_to_add = new Line(LINE_CONTINUE, std::string(), nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, line_num);
         add_to_syntax_tree(line_to_add, -1);    
                 $$ = line_to_add;
             }
             | TOKEN_BREAK
             {
-                Line *line_to_add = new Line(LINE_BREAK, NULL, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, line_num);
+                Line *line_to_add = new Line(LINE_BREAK, std::string(), nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, line_num);
                 add_to_syntax_tree(line_to_add, -1);    
                 $$ = line_to_add;
             }
             ;
 
-expr	: expr TOKEN_ASSIGN expr_or
-		| expr TOKEN_INCEQ expr_or
+expr	: name TOKEN_ASSIGN expr_or
+		{
+            Expr *name = new Expr(EXPR_NAME, $1, line_num);
+            Expr *e = new Expr(EXPR_ASSIGN, name, $3, line_num);
+            $$ = e;
+        }
+        | expr TOKEN_INCEQ expr_or
+		{
+            Expr *e = new Expr(EXPR_PLUS_EQ, $1, $3, line_num);
+            $$ = e;
+        }
 		| expr TOKEN_DECEQ expr_or
+		{
+            Expr *e = new Expr(EXPR_SUB_EQ, $1, $3, line_num);
+            $$ = e;
+        }
 		| expr TOKEN_MULTEQ expr_or
+		{
+            Expr *e = new Expr(EXPR_MUL_EQ, $1, $3, line_num);
+            $$ = e;
+        }
 		| expr TOKEN_DIVEQ expr_or
+		{
+            Expr *e = new Expr(EXPR_DIV_EQ, $1, $3, line_num);
+            $$ = e;
+        }
         | expr_or
-		;
+		{
+            $$ = $1;
+        }
+        ;
 
 expr_or	: expr_or TOKEN_OR expr_and
+		{
+            Expr *e = new Expr(EXPR_OR, $1, $3, line_num);
+            $$ = e;
+        }
 		| expr_and
+		{
+            $$ = $1;
+        }
 		;
 		
 expr_and: expr_and TOKEN_AND expr_eq
+		{
+            Expr *e = new Expr(EXPR_AND, $1, $3, line_num);
+            $$ = e;
+        }
 		| expr_eq
+		{
+            $$ = $1;
+        }
 		;
 
 expr_eq	: expr_eq TOKEN_EQ expr_comp
+		{
+            Expr *e = new Expr(EXPR_EQ, $1, $3, line_num);
+            $$ = e;
+        }
         | expr_eq TOKEN_NE expr_comp
+		{
+            Expr *e = new Expr(EXPR_NEQ, $1, $3, line_num);
+            $$ = e;
+        }
 		| expr_comp
+		{
+            $$ = $1;
+        }
 		;
 
 expr_comp   : expr_comp TOKEN_LT expr_add
+		    {
+                Expr *e = new Expr(EXPR_LT, $1, $3, line_num);
+                $$ = e;
+            }
 		    | expr_comp TOKEN_LE expr_add
+		    {
+                Expr *e = new Expr(EXPR_LTE, $1, $3, line_num);
+                $$ = e;
+            }
 		    | expr_comp TOKEN_GT expr_add
+		    {
+                Expr *e = new Expr(EXPR_GT, $1, $3, line_num);
+                $$ = e;
+            }
 		    | expr_comp TOKEN_GE expr_add
+		    {
+                Expr *e = new Expr(EXPR_GTE, $1, $3, line_num);
+                $$ = e;
+            }
 		    | expr_add
+		    {
+                $$ = $1;
+            }
+            ;
 
 expr_add: expr_add TOKEN_ADD expr_mul
+		{
+            Expr *e = new Expr(EXPR_ADD, $1, $3, line_num);
+            $$ = e;
+        }
 		| expr_add TOKEN_MINUS expr_mul
+		{
+            Expr *e = new Expr(EXPR_SUB, $1, $3, line_num);
+            $$ = e;
+        }
 		| expr_mul
+		{
+            $$ = $1;
+        }
 		;
 
 expr_mul: expr_mul TOKEN_MULTIPLY expr_exp
+		{
+            Expr *e = new Expr(EXPR_MUL, $1, $3, line_num);
+            $$ = e;
+        }
 	 	| expr_mul TOKEN_DIVIDE expr_exp
+		{
+            Expr *e = new Expr(EXPR_DIV, $1, $3, line_num);
+            $$ = e;
+        }
 		| expr_mul TOKEN_MOD expr_exp
+		{
+            Expr *e = new Expr(EXPR_MOD, $1, $3, line_num);
+            $$ = e;
+        }
 		| expr_exp
+		{
+            $$ = $1;
+        }
 		;
 
 expr_exp: expr_exp TOKEN_EXPONENT expr_bool
+		{
+            Expr *e = new Expr(EXPR_EXP, $1, $3, line_num);
+            $$ = e;
+        }
 		| expr_bool
+		{
+            $$ = $1;
+        }
 		;
 
 expr_bool   : TOKEN_NOT non_int_literal
+		    {
+                Expr *e = new Expr(EXPR_NOT, nullptr, $2, line_num);
+                $$ = e;
+            }
 		    | TOKEN_NOT name
+		    {
+                Expr *name = new Expr(EXPR_NAME, $2, line_num);
+                Expr *e = new Expr(EXPR_NOT, nullptr, name, line_num);
+                $$ = e;
+            }
 		    | non_int_literal
 		    | expr_minus
+		    {
+                $$ = $1;
+            }
 		    ;
 
 expr_minus	: TOKEN_MINUS expr_int
+		    {
+                Expr *e = new Expr(EXPR_NEG, nullptr, $2, line_num);
+                $$ = e;
+            }
 		    | expr_int
+		    {
+                $$ = $1;
+            }
 		    ;
 
 expr_int: value_literals
+		{
+            $$ = $1;
+        }
 		| expr_inc
+		{
+            $$ = $1;
+        }
 		;		
 
 expr_inc: expr_inc TOKEN_INCREMENT
+		{
+            Expr *e = new Expr(EXPR_INC, $1, nullptr, line_num);
+            $$ = e;
+        }
         | expr_inc TOKEN_DECREMENT
+		{
+            Expr *e = new Expr(EXPR_DEC, $1, nullptr, line_num);
+            $$ = e;
+        }
 		| expr_grp
+		{
+            $$ = $1;
+        }
 		;
 
 expr_grp: TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
-		| name
-		//| name TOKEN_LEFT_PAREN expr_list TOKEN_RIGHT_PAREN
+		{
+            $$ = $2;
+        }
+        | name
+        {
+            Expr *name = new Expr(EXPR_NAME, *$1, line_num);
+            $$ = name;
+        }
+		//| name TOKEN_LEFT_PAREN arg_list TOKEN_RIGHT_PAREN
         ;
 
 indent  : TOKEN_INDENT_TAB
@@ -368,7 +519,8 @@ indent  : TOKEN_INDENT_TAB
         ;
 
 begin_indent: TOKEN_INDENT_TAB
-            {   if(!ws_define){
+            {   
+                if(!ws_define){
                     spaces = false; 
                     ws_define = true;
                 }
@@ -380,7 +532,8 @@ begin_indent: TOKEN_INDENT_TAB
                 $$ = indent_level;
             }
             | TOKEN_INDENT_SPACE
-            {   if(!ws_define){
+            {   
+                if(!ws_define){
                     spaces = true; 
                     ws_define = true;
                 }
@@ -395,6 +548,7 @@ begin_indent: TOKEN_INDENT_TAB
             {
                 for(int i = scope_stack.size()-1;i>0;i--){
                     scope_stack.pop_back();
+                    tails.pop_back();
                 }
                 indent_levels_add(0);
                 max_stack_size = 1;
@@ -402,24 +556,46 @@ begin_indent: TOKEN_INDENT_TAB
             }
             ;
 
-arg_list: arg TOKEN_COMMA arg_list
-        | arg
+arg_list: name TOKEN_COMMA arg_list
+        {
+            Expr *name = new Expr(EXPR_NAME, *$1, line_num);
+            Expr *e = new Expr(EXPR_ARG, name, $3, line_num);
+            $$ = e;
+        }
+        | name
+        {
+            Expr *e = new Expr(EXPR_NAME, *$1, line_num);
+            $$ = e; 
+        }
         | /*empty*/
+        { }
         ;
 
-arg : name
-    | name TOKEN_ASSIGN value_literals
-    | name TOKEN_ASSIGN non_int_literal
-    ;
-
 value_literals  : TOKEN_INTEGER_LITERAL
+                {
+                    Expr *e = new Expr(EXPR_INT_LITERAL, stoi(*$1), line_num);
+                    $$ = e;
+                }
                 | TOKEN_FP_LITERAL
+                {
+                    Expr *e = new Expr(EXPR_FP_LITERAL, std::stod(*$1), line_num);
+                    $$ = e;
+                }
                 ;
 
 non_int_literal : TOKEN_BOOL_LITERAL
+                {
+                    bool value = (*$1 == "true") ? true : false;
+                    Expr *e = new Expr(EXPR_BOOL_LITERAL, value, line_num);
+                    $$ = e;
+                }
                 ;
 
 name: TOKEN_IDENTIFIER
+    {
+        std::string *item = new std::string(*$1);
+        $$ = item;
+    }
     ;
 %%
 
@@ -476,8 +652,8 @@ bool check_indent_levels(){
 }
 
 void add_to_syntax_tree(Line *l, int level){
-    if(level < 0) {
-       for(int i = tails.size()-1;i<scope_stack.size()-1;i++){
+    if(level < 0 && tails.size() < scope_stack.size()) {
+        for(int i = tails.size();i<scope_stack.size();i++){
             tails.push_back(nullptr);
         }
         tails.push_back(l);
@@ -491,20 +667,19 @@ void add_to_syntax_tree(Line *l, int level){
             case LINE_EXPR:
             case LINE_CONTINUE:
             case LINE_VAR_DEF:
-                tails.back()->next = l;
+                if(tails.back()) tails.back()->next = l;
                 tails.back() = l;
                 break;
             case LINE_IF:
             case LINE_FOR:
             case LINE_WHILE:
             case LINE_FUNC_DEF:
-                tails[level]->next = l;
+                if(tails[level]) tails[level]->next = l;
                 tails[level] = l;
                 break;
             case LINE_ELSE_IF:
             case LINE_ELSE:
                 Line *nested = tails[level];
-                while(nested->else_body) nested = nested->else_body;
                 nested->else_body = l;
                 break;
         }

@@ -49,10 +49,10 @@ and { return token::TOKEN_AND; }
 or { return token::TOKEN_OR; }
 not { return token::TOKEN_NOT; }
 in { return token::TOKEN_IN; }
-(true|false) { return token::TOKEN_BOOL_LITERAL; }
-{DIGIT}*\.{DIGIT}* { return token::TOKEN_FP_LITERAL; }
-{DIGIT}+ {return token::TOKEN_INTEGER_LITERAL; }
-({LETTER}|_)({LETTER}|{DIGIT}|_)* { return token::TOKEN_IDENTIFIER; }
+(true|false) { yylval->str = new std::string(yytext, yyleng); return token::TOKEN_BOOL_LITERAL; }
+{DIGIT}*\.{DIGIT}* { yylval->str = new std::string(yytext, yyleng); return token::TOKEN_FP_LITERAL; }
+{DIGIT}+ {yylval->str = new std::string(yytext, yyleng); return token::TOKEN_INTEGER_LITERAL; }
+({LETTER}|_)({LETTER}|{DIGIT}|_)* { yylval->str = new std::string(yytext, yyleng); return token::TOKEN_IDENTIFIER; }
 \( { return token::TOKEN_LEFT_PAREN; }
 \) { return token::TOKEN_RIGHT_PAREN; }
 \[ { return token::TOKEN_LEFT_BRACKET; }

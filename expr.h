@@ -45,7 +45,8 @@ class Expr {
         Expr(expr_t, bool, int);
         Expr(expr_t, double, int);
         ~Expr();
-		expr_t kind;
+		void print();
+        expr_t kind;
 		Expr *left;
 		Expr *right;
 		std::string name; 
