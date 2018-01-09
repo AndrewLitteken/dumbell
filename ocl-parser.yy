@@ -105,7 +105,7 @@ void add_to_syntax_tree(Line*, int);
 
 %type <num> indent begin_indent
 %type <line> program line_list line fill_line stmt decl loop_control line_type
-%type <expr> expr expr_or expr_and expr_eq expr_comp expr_add expr_mul expr_exp expr_bool expr_minus expr_int expr_inc expr_grp value_literals non_int_literal arg_list
+%type <expr> expr expr_or expr_and expr_eq expr_comp expr_add expr_mul expr_exp expr_bool expr_minus expr_int expr_inc expr_grp value_literals non_int_literal arg_list expr_list
 %type <str> name
 %{
 #include "ocl-driver.h"
@@ -499,8 +499,27 @@ expr_grp: TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
             Expr *name = new Expr(EXPR_NAME, *$1, line_num);
             $$ = name;
         }
-		//| name TOKEN_LEFT_PAREN arg_list TOKEN_RIGHT_PAREN
+		| name TOKEN_LEFT_PAREN expr_list TOKEN_RIGHT_PAREN
+        {
+            Expr *name = new Expr(EXPR_NAME, *$1, line_num);
+            Expr *e = new Expr(EXPR_CALL, name, $3, line_num);
+            $$ = e;
+        }
         ;
+
+expr_list   : expr TOKEN_COMMA expr_list
+            {
+                Expr *e = new Expr(EXPR_ARG, $1, $3, line_num);
+                $$ = e;
+            }
+            | expr
+            { 
+                Expr *e = new Expr(EXPR_ARG, $1, nullptr, line_num);
+                $$ = e;
+            }
+            | /*empty*/
+            { $$ = nullptr; }
+            ;
 
 indent  : TOKEN_INDENT_TAB
         { 
