@@ -21,6 +21,14 @@ struct iter_info {
     std::vector<std::string> *dependents;
 };
 
+// does each iteration have dependents or does the symbol as a whole have dependents?
+
+// Inclined to say that the symbol as a whole has some set of dependents
+
+// in which case, sbould be moved out of the iter_info struct
+
+// TODO:  Think about this ^
+
 class Symbol {
     public:
         Symbol(symbol_t, bool, std::string, Expr*, Type*);
