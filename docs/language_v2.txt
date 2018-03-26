@@ -1,0 +1,47 @@
+y := x + z
+z := 2 * x
+
+f1 = function(x):
+	if x <= 0:
+		return x * f1(x - 1)
+	else:
+		raise Error
+
+m := 12 + f1(x)
+
+x = 5
+x = 7
+x := y + 5
+x := q + r
+q = 1
+r = 2
+
+print(y + z)
+
+a = [x, y, z]
+a := [x, y, z]
+a := [1, 3, z]
+
+object rectangle:
+	.new = function(x, y):
+		.length = x
+		.width = y
+	.area := length * width
+	.perimeter := 2 * length + 2 * width
+	.set_length = function(x): 
+		.length = x
+	.set_width = function(y):
+		.width = y
+
+r = rectangle.new(10, 15)
+print(r.area)
+
+r = rectangle.new(l, w)
+
+print(r.area)
+
+r = recantangle.new(l, w)
+print(r.area)
+l = 4
+w = 6
+print(r.area) 
