@@ -3,6 +3,8 @@
 
 #include "expr.h"
 #include "type.h"
+#include "Symbol.h"
+#include "SymbolTable.h"
 #include <string>
 
 typedef enum {
@@ -26,8 +28,10 @@ class Line {
         Line(line_t, std::string, Type *, Expr*, Expr *, Expr *, Line *, Line *, int); 
         ~Line();
         void print(int);
+        void name_resolve(SymbolTable *);
         line_t kind;
         std::string name;
+        Symbol *symbol;
         Type *type;
         Expr *init_expr;
         Expr *expr;

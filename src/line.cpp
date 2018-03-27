@@ -1,6 +1,8 @@
 #include "line.h"
 #include "expr.h"
 #include "type.h"
+#include "Symbol.h"
+#include "SymbolTable.h"
 #include <string>
 #include <iostream>
 
@@ -17,6 +19,28 @@ Line::Line(line_t l, std::string s, Type * t, Expr* ie, Expr *e, Expr *ne, Line 
 }
 
 Line::~Line(){}
+
+void Line::name_resolve(SymbolTable *table){
+    switch(kind){
+        case LINE_VAR_DEF:
+            symbol = table->search_table(name);
+            if(!symbol){
+                symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
+                    SYMBOL_GLOBAL;
+                symbol = new Symbol(k, true, name, expr, type, table);
+            }
+            else{
+                symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
+                    SYMBOL_GLOBAL;
+                symbol->redefine(k, expr, type);
+            }
+            break;
+        case LINE_EXPR:
+            break;
+        default:
+            break;
+    }
+}
 
 void Line::print(int tabs){
     Line *l;
