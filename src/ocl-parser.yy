@@ -3,8 +3,8 @@
 #include <vector>
 #include <iostream>
 #include <utility>
-#include "line.h"
-#include "expr.h"
+#include "Line.h"
+#include "Expr.h"
 
 typedef std::pair<int, std::vector<bool> > scope_info;
 

@@ -1,5 +1,5 @@
-#include "type.h"
-#include "expr.h"
+#include "Type.h"
+#include "Expr.h"
 #include "Symbol.h"
 #include "SymbolTable.h"
 #include <map>

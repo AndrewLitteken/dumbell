@@ -1,6 +1,6 @@
-#include "line.h"
-#include "expr.h"
-#include "type.h"
+#include "Line.h"
+#include "Expr.h"
+#include "Type.h"
 #include "Symbol.h"
 #include "SymbolTable.h"
 #include <string>

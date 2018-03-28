@@ -21,13 +21,13 @@ ocl-scanner.o: ocl-scanner.cpp
 expr.o: expr.cpp expr.h
 	$(CC) $(CPPFLAGS) -c -o $@ $<
 
-line.o: line.cpp line.h
+line.o: line.cpp line.h Expr.h Type.h Symbol.h
 	$(CC) $(CPPFLAGS) -c -o $@ $<
 
-Symbol.o: Symbol.cpp symbol.h
+Symbol.o: Symbol.cpp Symbol.h Type.h Expr.h
 	$(CC) $(CPPFLAGS) -c -o $@ $<
 
-SymbolTable.o: SymbolTable.cpp SymbolTable.h
+SymbolTable.o: SymbolTable.cpp SymbolTable.h Symbol.h Type.h Expr.h
 	$(CC) $(CPPFLAGS) -c -o $@ $<
 
 ocl-scanner.cpp: ocl-scanner.ll ocl-parser.h ocl-scanner.h

@@ -1,8 +1,8 @@
 #ifndef SYMBOL_H
 #define SYMBOL_H
 
-#include "type.h"
-#include "expr.h"
+#include "Type.h"
+#include "Expr.h"
 #include "SymbolTable.h"
 #include <map>
 #include <string>
@@ -28,6 +28,8 @@ struct iter_info {
 // in which case, sbould be moved out of the iter_info struct
 
 // TODO:  Think about this ^
+
+// think about adding scope to the iteration info
 
 class Symbol {
     public:

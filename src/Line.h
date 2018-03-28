@@ -1,8 +1,8 @@
 #ifndef LINE_H
 #define LINE_H
 
-#include "expr.h"
-#include "type.h"
+#include "Expr.h"
+#include "Type.h"
 #include "Symbol.h"
 #include "SymbolTable.h"
 #include <string>

@@ -2,7 +2,7 @@
 #define OCL_DRIVER_H
 #include <string>
 #include <vector>
-#include "line.h"
+#include "Line.h"
 
 namespace yy {
 
