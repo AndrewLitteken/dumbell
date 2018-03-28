@@ -1,5 +1,5 @@
 %{
-#include "ocl-scanner.h"
+#include "OclScanner.h"
 #include <string>
 #include <cstdlib>
 #include <climits>

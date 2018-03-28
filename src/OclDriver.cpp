@@ -1,5 +1,5 @@
-#include "ocl-driver.h"
-#include "ocl-scanner.h"
+#include "OclDriver.h"
+#include "OclScanner.h"
 #include <string>
 #include <vector>
 #include <fstream>

@@ -1,7 +1,7 @@
 #ifndef TYPE_H
 #define TYPE_H
 
-#include "param_list.h"
+#include "ParamList.h"
 
 typedef enum {
 	TYPE_INTEGER,

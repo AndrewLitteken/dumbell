@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fstream>
 
-#include "ocl-driver.h"
+#include "OclDriver.h"
 
 typedef std::pair<int, std::vector<bool> > scope_info;
 std::vector<scope_info> scope_stack;

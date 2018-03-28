@@ -11,7 +11,7 @@
     )
 #endif
 
-#include "ocl-parser.h"
+#include "OclParser.h"
 
 #ifndef __FLEX_LEXER_H
 #include "FlexLexer.h"

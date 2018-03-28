@@ -35,7 +35,7 @@ void add_to_syntax_tree(Line*, int);
 
 %define "parser_class_name" {Parser}
 
-%defines "ocl-parser.h"
+%defines "OclParser.h"
 
 %debug
 
@@ -109,8 +109,8 @@ void add_to_syntax_tree(Line*, int);
 %type <expr> expr expr_or expr_and expr_eq expr_comp expr_add expr_mul expr_exp expr_bool expr_minus expr_int expr_inc expr_grp value_literals non_int_literal arg_list expr_list
 %type <str> name
 %{
-#include "ocl-driver.h"
-#include "ocl-scanner.h"
+#include "OclDriver.h"
+#include "OclScanner.h"
 
 extern int line_num;
 
