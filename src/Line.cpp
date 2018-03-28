@@ -32,10 +32,21 @@ void Line::name_resolve(SymbolTable *table){
             else{
                 symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
                     SYMBOL_GLOBAL;
-                symbol->redefine(k, expr, type);
+                symbol->redefine(k, true, expr, type, table);
             }
             break;
         case LINE_EXPR:
+            symbol = table->search_table(name);
+            if(!symbol){
+                symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
+                    SYMBOL_GLOBAL;
+                symbol = new Symbol(k, false, name, expr, type, table);
+            }
+            else{
+                symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
+                    SYMBOL_GLOBAL;
+                symbol->redefine(k, false, expr, type, table);
+            }
             break;
         default:
             break;

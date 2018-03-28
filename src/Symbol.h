@@ -37,7 +37,7 @@ class Symbol {
         Symbol(std::string, std::string);
         std::set<std::string> *process_def();
         void add_dependents(std::set<std::string> *, SymbolTable *);
-        void redefine(symbol_t, Expr*, Type *);
+        void redefine(symbol_t, bool, Expr*, Type *, SymbolTable *);
         int def_number;
         std::string base_name;
         std::vector<struct iter_info *> iter_info;
