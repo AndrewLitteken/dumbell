@@ -51,6 +51,9 @@ void Line::name_resolve(SymbolTable *table){
         default:
             break;
     }
+
+    if(next) next->name_resolve(table);
+    return;
 }
 
 void Line::print(int tabs){

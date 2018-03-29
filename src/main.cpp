@@ -25,8 +25,9 @@ int main(int argc, char * argv[]){
     if(result){
         std::cout<<"Parsing successful"<<std::endl;
         if(driver.syntax_tree) driver.print();
-        return 0;
+//        return 0;
     }
     else std::cout<<"Parsing unsuccessful"<<std::endl;
+    driver.track_names();
     return 1;
 }

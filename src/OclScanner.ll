@@ -31,6 +31,10 @@ WS [ \t]
     yylloc->step();
 %}
 
+(\/\*(\*+[^\*/]|[\t\n]|[^*])*\*+\/|(\/\/).*) {
+	char *c=yytext;
+	if(*(c+1) == '/') for(;*c;c++) if (*c=='\n') line_num++;
+}
 ^[\t]+ {yylval->str = new std::string(yytext, yyleng); return token::TOKEN_INDENT_TAB; }
 ^[ ]+ {yylval->str = new std::string(yytext, yyleng); return token::TOKEN_INDENT_SPACE; }
 {WS}

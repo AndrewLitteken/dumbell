@@ -1,6 +1,7 @@
-x := 5 + 5 + y
+/*x := 5 + 5 + y
 y := "help"
 y := 'help'
+// Testing
 x = 2
 x:= 634217666.4328472387
 x = .99932
@@ -37,6 +38,4 @@ y := x(k)
 k = 3
 print(y)
 k = 4
-print(y)
-
-
+print(y)*/

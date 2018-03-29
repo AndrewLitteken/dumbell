@@ -724,6 +724,6 @@ void add_to_syntax_tree(Line *l, int level){
 }
 
 void yy::Parser::error(const yy::location& l, const std::string& m){
-    std::cout<<"Line :"<<line_num<<" "<<m<<std::endl;
+    std::cout<<"Line: "<<line_num<<" "<<m<<std::endl;
     driver.error(l, m);
 }
