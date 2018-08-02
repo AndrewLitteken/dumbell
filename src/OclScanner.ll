@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <climits>
 #include <cerrno>
-int line_num = 1;
+int line_num = 0;
 
 typedef yy::Parser::token token;
 typedef yy::Parser::token_type token_type;
@@ -33,7 +33,7 @@ WS [ \t]
 
 (\/\*(\*+[^\*/]|[\t\n]|[^*])*\*+\/|(\/\/).*) {
 	char *c=yytext;
-	if(*(c+1) == '/') for(;*c;c++) if (*c=='\n') line_num++;
+	if(*(c) == '/') for(;*c;c++) if (*c=='\n') line_num++;
 }
 ^[\t]+ {yylval->str = new std::string(yytext, yyleng); return token::TOKEN_INDENT_TAB; }
 ^[ ]+ {yylval->str = new std::string(yytext, yyleng); return token::TOKEN_INDENT_SPACE; }
@@ -59,7 +59,7 @@ in { return token::TOKEN_IN; }
 (true|false) { yylval->str = new std::string(yytext, yyleng); return token::TOKEN_BOOL_LITERAL; }
 {DIGIT}*\.{DIGIT}* { yylval->str = new std::string(yytext, yyleng); return token::TOKEN_FP_LITERAL; }
 {DIGIT}+ {yylval->str = new std::string(yytext, yyleng); return token::TOKEN_INTEGER_LITERAL; }
-({LETTER}|_)({LETTER}|{DIGIT}|_)* { yylval->str = new std::string(yytext, yyleng); return token::TOKEN_IDENTIFIER; }
+({LETTER})({LETTER}|{DIGIT}|_)* { yylval->str = new std::string(yytext, yyleng); return token::TOKEN_IDENTIFIER; }
 \( { return token::TOKEN_LEFT_PAREN; }
 \) { return token::TOKEN_RIGHT_PAREN; }
 \[ { return token::TOKEN_LEFT_BRACKET; }
@@ -86,7 +86,7 @@ in { return token::TOKEN_IN; }
 == { return token::TOKEN_EQ; }
 != { return token::TOKEN_NE; }
 : { return token::TOKEN_COLON; }
-\n { line_num++; return token::TOKEN_NEWLINE; }
+\n { return token::TOKEN_NEWLINE; }
 , { return token::TOKEN_COMMA; }
 . { return token::TOKEN_ERROR; }
 %%

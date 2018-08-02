@@ -126,7 +126,8 @@ program : line_list
 
 line_list   : line line_list
             {
-                $$ = $1;
+                if(!$1) $$ = $2;
+                else $$ = $1;
             }
             | /*empty*/
             { }
@@ -138,8 +139,10 @@ line: begin_indent line_type TOKEN_NEWLINE
         indent_level_count = -1;
         $$ = $2;
     }
-    | TOKEN_NEWLINE
-    { }
+    | begin_indent TOKEN_NEWLINE
+    { 
+        $$ = nullptr;
+    }
     ;
 
 line_type   : decl
@@ -243,7 +246,7 @@ stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
         }
         else{
             scope_stack[$4-1].second[0] = false; 
-        } 
+       } 
         Line *line_to_add = new Line(LINE_ELSE, std::string(), nullptr, nullptr, nullptr, nullptr, $5, nullptr, line_num);
         add_to_syntax_tree(line_to_add, $4-1);
         $$ = line_to_add;
@@ -294,35 +297,46 @@ loop_control: TOKEN_CONTINUE
 
 expr	: name TOKEN_ASSIGN expr_or
 		{
-            Expr *name = new Expr(EXPR_NAME, $1, line_num);
+            Expr *name = new Expr(EXPR_NAME, *$1, line_num);
             Expr *e = new Expr(EXPR_ASSIGN, name, $3, line_num);
             $$ = e;
         }
-        | expr TOKEN_INCEQ expr_or
+        | name TOKEN_INCEQ expr_or
 		{
-            Expr *e = new Expr(EXPR_PLUS_EQ, $1, $3, line_num);
-            $$ = e;
+            Expr *name = new Expr(EXPR_NAME, *$1, line_num);
+            Expr *name_new = new Expr(EXPR_NAME, *$1, line_num);
+            Expr *e = new Expr(EXPR_ADD, name, $3, line_num);
+            Expr *d = new Expr(EXPR_ASSIGN, name_new, e, line_num);
+            $$ = d;
         }
-		| expr TOKEN_DECEQ expr_or
+		| name TOKEN_DECEQ expr_or
 		{
-            Expr *e = new Expr(EXPR_SUB_EQ, $1, $3, line_num);
-            $$ = e;
+            Expr *name = new Expr(EXPR_NAME, *$1, line_num);
+            Expr *name_new = new Expr(EXPR_NAME, *$1, line_num);
+            Expr *e = new Expr(EXPR_SUB, name, $3, line_num);
+            Expr *d = new Expr(EXPR_ASSIGN, name_new, e, line_num);
+            $$ = d;
         }
-		| expr TOKEN_MULTEQ expr_or
+		| name TOKEN_MULTEQ expr_or
 		{
-            Expr *e = new Expr(EXPR_MUL_EQ, $1, $3, line_num);
-            $$ = e;
+            Expr *name = new Expr(EXPR_NAME, *$1, line_num);
+            Expr *name_new = new Expr(EXPR_NAME, *$1, line_num);
+            Expr *e = new Expr(EXPR_MUL, name, $3, line_num);
+            Expr *d = new Expr(EXPR_ASSIGN, name_new, e, line_num);
+            $$ = d;
         }
-		| expr TOKEN_DIVEQ expr_or
+		| name TOKEN_DIVEQ expr_or
 		{
-            Expr *e = new Expr(EXPR_DIV_EQ, $1, $3, line_num);
-            $$ = e;
+            Expr *name = new Expr(EXPR_NAME, *$1, line_num);
+            Expr *name_new = new Expr(EXPR_NAME, *$1, line_num);
+            Expr *e = new Expr(EXPR_DIV, name, $3, line_num);
+            Expr *d = new Expr(EXPR_ASSIGN, name_new, e, line_num);
+            $$ = d;
         }
         | expr_or
-		{
+        {
             $$ = $1;
         }
-        ;
 
 expr_or	: expr_or TOKEN_OR expr_and
 		{
@@ -341,10 +355,7 @@ expr_and: expr_and TOKEN_AND expr_eq
             $$ = e;
         }
 		| expr_eq
-		{
-            $$ = $1;
-        }
-		;
+        ;
 
 expr_eq	: expr_eq TOKEN_EQ expr_comp
 		{
@@ -477,15 +488,17 @@ expr_int: value_literals
         }
 		;		
 
-expr_inc: expr_inc TOKEN_INCREMENT
+expr_inc: name TOKEN_INCREMENT
 		{
-            Expr *e = new Expr(EXPR_INC, $1, nullptr, line_num);
-            $$ = e;
+            Expr *name = new Expr(EXPR_NAME, *$1, line_num);
+            Expr *d = new Expr(EXPR_INC, name, nullptr, line_num);
+            $$ = d;
         }
-        | expr_inc TOKEN_DECREMENT
+        | name TOKEN_DECREMENT
 		{
-            Expr *e = new Expr(EXPR_DEC, $1, nullptr, line_num);
-            $$ = e;
+            Expr *name = new Expr(EXPR_NAME, *$1, line_num);
+            Expr *d = new Expr(EXPR_DEC, name, nullptr, line_num);
+            $$ = d;
         }
 		| expr_grp
 		{
@@ -493,7 +506,7 @@ expr_inc: expr_inc TOKEN_INCREMENT
         }
 		;
 
-expr_grp: TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
+expr_grp: TOKEN_LEFT_PAREN expr_or TOKEN_RIGHT_PAREN
 		{
             $$ = $2;
         }
@@ -526,6 +539,7 @@ expr_list   : expr TOKEN_COMMA expr_list
 
 indent  : TOKEN_INDENT_TAB
         { 
+            line_num++;
             if(!ws_define){
                 spaces = false; 
                 ws_define = true;
@@ -541,7 +555,8 @@ indent  : TOKEN_INDENT_TAB
         }
         | TOKEN_INDENT_SPACE
         { 
-            if(!ws_define){
+           line_num++; 
+           if(!ws_define){
                 spaces = true; 
                 ws_define = true;
             }
@@ -558,6 +573,7 @@ indent  : TOKEN_INDENT_TAB
 
 begin_indent: TOKEN_INDENT_TAB
             {   
+                line_num++;
                 if(!ws_define){
                     spaces = false; 
                     ws_define = true;
@@ -571,6 +587,7 @@ begin_indent: TOKEN_INDENT_TAB
             }
             | TOKEN_INDENT_SPACE
             {   
+                line_num++;
                 if(!ws_define){
                     spaces = true; 
                     ws_define = true;
@@ -584,6 +601,7 @@ begin_indent: TOKEN_INDENT_TAB
             }
             | /*empty*/
             {
+                line_num++;
                 for(int i = scope_stack.size()-1;i>0;i--){
                     scope_stack.pop_back();
                     tails.pop_back();

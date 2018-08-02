@@ -47,6 +47,11 @@ void oclDriver::print(){
     syntax_tree->print(0);
 }
 
+
+void oclDriver::print_name(){
+    if(syntax_tree) syntax_tree->print_name(0);
+}
+
 void oclDriver::error(const class location& l, const std::string& m){
     //std::cerr << "Line " << (int) l << ": "<< m << std::endl;
 }

@@ -29,5 +29,6 @@ int main(int argc, char * argv[]){
     }
     else std::cout<<"Parsing unsuccessful"<<std::endl;
     driver.track_names();
+    driver.print_name();
     return 1;
 }

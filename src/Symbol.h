@@ -5,8 +5,12 @@
 #include "Expr.h"
 #include "SymbolTable.h"
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
+
+class Expr;
+class SymbolTable;
 
 typedef enum {
     SYMBOL_GLOBAL,
@@ -19,6 +23,7 @@ struct iter_info {
     std::string label;   
     Expr * definition;
     Type * type;
+    std::set<std::string> *dependencies;
 };
 
 // does each iteration have dependents or does the symbol as a whole have dependents?
@@ -39,6 +44,8 @@ class Symbol {
         void add_dependents(std::set<std::string> *, SymbolTable *);
         void redefine(symbol_t, bool, Expr*, Type *, SymbolTable *);
         int def_number;
+        int working_set;
+        int printed;
         std::string base_name;
         std::vector<struct iter_info *> iter_info;
         std::vector<std::string> *dependents;

@@ -5,29 +5,39 @@
 #include <map>
 #include <set>
 #include <string>
+#include <iostream>
 
 int overall_def_num = 0;
+int overall_assign_num = 0;
 
 Symbol::Symbol(symbol_t k, bool def, std::string n, Expr *e, Type *t,
     SymbolTable *table){
+    printed = 0;
     def_number = 0;
+    base_name = n;
     struct iter_info *initial_info = (struct iter_info *)
         malloc(sizeof(struct iter_info));
     initial_info->def_or_expr = def;
     initial_info->definition = e;
     initial_info->type = t;
     dependents = new std::vector<std::string>;
+    initial_info->dependencies = new std::set<std::string>;
     iter_info.push_back(initial_info);
     if(def) {
-        initial_info->label = "D"+std::to_string(overall_def_num);
+        initial_info->label = ".D"+std::to_string(overall_def_num);
         overall_def_num++;
-        std::set<std::string> dependencies(*process_def());
-        add_dependents(&dependencies, table);
+        initial_info->dependencies = process_def();
+        add_dependents(initial_info->dependencies, table);
+    }
+    else {
+        initial_info->label = ".A"+std::to_string(overall_assign_num);
+        overall_assign_num++;
     }
 }
 
 Symbol::Symbol(std::string n, std::string d){
     def_number = -1;
+    base_name = n;
     dependents = new std::vector<std::string>;
     dependents->push_back(d);
 }
@@ -53,17 +63,21 @@ void Symbol::add_dependents(std::set<std::string> *dependencies,
 }
 
 void Symbol::redefine(symbol_t s, bool def, Expr* e, Type *t, SymbolTable *table){
-    def_number++;
-    struct iter_info *new_info = (struct iter_info *)
-        malloc(sizeof(struct iter_info));
+    if(def_number == -1) def_number = 0;
+    struct iter_info *new_info =  new struct iter_info;
     new_info->def_or_expr = def;
     new_info->definition = e;
     new_info->type = t;
+    new_info->dependencies = new std::set<std::string>;
     iter_info.push_back(new_info);
     if(def){
-        new_info->label = "D"+std::to_string(overall_def_num);
+        new_info->label = ".D"+std::to_string(overall_def_num);
         overall_def_num++;
-        std::set<std::string> dependencies(*process_def());    
-        add_dependents(&dependencies, table); 
+        new_info->dependencies = process_def();    
+        add_dependents(new_info->dependencies, table); 
+    }
+    else {
+        new_info->label = ".A"+std::to_string(overall_assign_num);
+        overall_assign_num++;
     }
 }

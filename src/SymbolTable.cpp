@@ -30,7 +30,7 @@ void SymbolTable::exit_level(){
 }
 
 void SymbolTable::add_to_level(std::string n, Symbol *s){
-    (*((symbol_list->at(symbol_list->size() - 1))->mapping))[n] = s;
+    (*((symbol_list->at(symbol_list->size() - 1))->mapping)).insert(std::make_pair(n, s));
     if(s->def_number == -1){
         (symbol_list->at(symbol_list->size() - 1))->undefined->insert(n);
     }
@@ -52,7 +52,7 @@ Symbol *SymbolTable::search_table(std::string to_find){
         symbol_list->end() - 1;curr != symbol_list->begin() - 1;curr--){
         std::map<std::string, Symbol *>::iterator result = (*curr)->
             mapping->find(to_find);
-        if(result == (*curr)->mapping->end()){
+        if(result != (*curr)->mapping->end()){
             return result->second;
         }
     }

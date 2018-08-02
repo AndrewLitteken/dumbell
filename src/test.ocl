@@ -1,10 +1,15 @@
-/*x := 5 + 5 + y
-y := "help"
-y := 'help'
-// Testing
-x = 2
-x:= 634217666.4328472387
-x = .99932
+//x := 5 + 5 + y
+z := x + 3
+x := 1 + z
+//x := x + 1
+//y := "help"
+//y := x + 'help' + z
+//x := y + 2
+x = x + y
+x++
+x++ + x + 2 + x
+x := 634217666.4328472387 + k
+.99932 + k
 print(332)
 if x == 2:
     x = 3
@@ -34,8 +39,8 @@ x = function(y):
         x += 2
     return y
 
-y := x(k)
-k = 3
+y := x+x+x
+k = 3 + x
 print(y)
-k = 4
-print(y)*/
+z = 4
+print(y)

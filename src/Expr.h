@@ -1,6 +1,8 @@
 #ifndef EXPR_H
 #define EXPR_H
 
+#include "SymbolTable.h"
+#include "Symbol.h"
 #include <string>
 #include <set>
 
@@ -48,6 +50,9 @@ class Expr {
         ~Expr();
 		void print();
         std::set<std::string>* get_expression_deps();
+        bool check_side_effects(bool);
+        bool dependency_resolve(SymbolTable *, std::set<std::string> &,
+            std::set<std::string> &);
         expr_t kind;
 		Expr *left;
 		Expr *right;

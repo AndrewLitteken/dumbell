@@ -28,6 +28,7 @@ class Line {
         Line(line_t, std::string, Type *, Expr*, Expr *, Expr *, Line *, Line *, int); 
         ~Line();
         void print(int);
+        void print_name(int);
         void name_resolve(SymbolTable *);
         line_t kind;
         std::string name;

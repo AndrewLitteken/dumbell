@@ -27,6 +27,7 @@ class oclDriver {
         bool track_names();
 
         void print();
+        void print_name();
 
         void error(const class location& l, const std::string& m);
         void error(const std::string& m);

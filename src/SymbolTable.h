@@ -2,6 +2,7 @@
 #define SYMBOL_TABLE_H
 
 #include "Symbol.h"
+#include <set>
 #include <map>
 #include <vector>
 #include <utility>
