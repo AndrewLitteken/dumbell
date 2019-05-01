@@ -11,7 +11,7 @@ class Symbol;
 
 struct level_info {
     std::map<std::string, Symbol * > *mapping;
-    std::set<std::string> *undefined;
+    std::map<std::string, Symbol * > *undefined;
 };
 
 class SymbolTable {

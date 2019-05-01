@@ -37,9 +37,12 @@ bool oclDriver::parse_string(const std::string &input, const std::string& sname)
 
 bool oclDriver::track_names(){
     SymbolTable * table = new SymbolTable;
-    std::cout<<"test1"<<std::endl;
-    if(syntax_tree) syntax_tree->name_resolve(table);
-    std::cout<<"test2"<<std::endl;
+    Line *curr = syntax_tree;
+    while(curr){
+        if(curr->kind != LINE_ELSE && curr->kind != LINE_ELSE_IF)
+            curr->evaluate(table);
+        curr = curr->next;
+    }
     return true;
 }
 

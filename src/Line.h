@@ -30,6 +30,7 @@ class Line {
         void print(int);
         void print_name(int);
         void name_resolve(SymbolTable *);
+        void evaluate(SymbolTable *);
         line_t kind;
         std::string name;
         Symbol *symbol;

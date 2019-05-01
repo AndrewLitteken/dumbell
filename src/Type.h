@@ -5,14 +5,15 @@
 
 typedef enum {
 	TYPE_INTEGER,
-	TYPE_FLOAT
+	TYPE_FLOAT,
+	TYPE_STRING,
+	TYPE_BOOL
 } type_t;
 
 class Type {
 	public:
 		Type(type_t, Type *, ParamList *);
 		~Type();
-	private:
 		type_t kind;
 		Type *subtype;
 		ParamList *params; 

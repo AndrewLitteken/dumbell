@@ -1,5 +1,5 @@
-#include "type.h"
-#include "param_list.h"
+#include "Type.h"
+#include "ParamList.h"
 
 Type::Type(type_t k, Type *stype, ParamList *param) {
 	kind = k;

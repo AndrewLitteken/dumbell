@@ -6,7 +6,7 @@ TARGETS = ocl
 
 all: $(TARGETS)
 
-ocl: main.o OclParser.o OclDriver.o OclScanner.o Line.o Expr.o Symbol.o SymbolTable.o
+ocl: main.o OclParser.o OclDriver.o OclScanner.o Line.o Expr.o Symbol.o Type.o SymbolTable.o
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^
 
 main.o: main.cpp OclDriver.h
@@ -22,6 +22,9 @@ Expr.o: Expr.cpp Expr.h
 	$(CC) $(CPPFLAGS) -c -o $@ $<
 
 Line.o: Line.cpp Line.h Expr.h Type.h Symbol.h
+	$(CC) $(CPPFLAGS) -c -o $@ $<
+
+Type.o: Type.cpp Line.h Expr.h Type.h Symbol.h
 	$(CC) $(CPPFLAGS) -c -o $@ $<
 
 Symbol.o: Symbol.cpp Symbol.h Type.h Expr.h

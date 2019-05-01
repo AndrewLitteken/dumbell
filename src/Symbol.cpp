@@ -12,72 +12,105 @@ int overall_assign_num = 0;
 
 Symbol::Symbol(symbol_t k, bool def, std::string n, Expr *e, Type *t,
     SymbolTable *table){
-    printed = 0;
-    def_number = 0;
+    defined = true;
     base_name = n;
-    struct iter_info *initial_info = (struct iter_info *)
-        malloc(sizeof(struct iter_info));
-    initial_info->def_or_expr = def;
-    initial_info->definition = e;
-    initial_info->type = t;
-    dependents = new std::vector<std::string>;
-    initial_info->dependencies = new std::set<std::string>;
-    iter_info.push_back(initial_info);
+    def_or_expr = def;
+    definition = e;
+    type = t;
+    dependents = new std::set<std::string>;
+    dependencies = process_def();
+    func_or_not = false;
+    func_body = nullptr;
     if(def) {
-        initial_info->label = ".D"+std::to_string(overall_def_num);
-        overall_def_num++;
-        initial_info->dependencies = process_def();
-        add_dependents(initial_info->dependencies, table);
+        add_to_depedencies(dependencies, table);
     }
     else {
-        initial_info->label = ".A"+std::to_string(overall_assign_num);
-        overall_assign_num++;
+        std::set<std::string> *bad = check_dependencies(dependencies, table);
+        if(bad->empty() == false){
+            std::cerr<<"ocl: line "<<e->line_num<<": ERROR: definition of "<<
+            n<<" uses undefined symbols\n";
+            // TODO: add the symbol that are being unsed erete
+        }
+        delete bad;
     }
 }
 
-Symbol::Symbol(std::string n, std::string d){
-    def_number = -1;
+Symbol::Symbol(std::string n, std::string dependent){
+    defined = false;
     base_name = n;
-    dependents = new std::vector<std::string>;
-    dependents->push_back(d);
+    dependents = new std::set<std::string>;
+    dependents->insert(dependent);
+    dependencies = new std::set<std::string>;
+}
+
+void Symbol::redefine(symbol_t k, bool def, Expr *e, Type *t, 
+                      SymbolTable *table){
+    func_or_not = false;
+    func_body = nullptr;
+    defined = true;
+    def_or_expr = def;
+    definition = e;
+    type = t;
+    std::set<std::string> *new_dependencies = process_def();
+    if(def_or_expr == true){
+        for(std::set<std::string>::iterator it = dependencies->begin();
+            it != dependencies->end();it++){
+            if(new_dependencies->find(*it) == new_dependencies->end()){
+                Symbol *dependency_symbol = table->search_table(*it);
+                dependency_symbol->dependents->erase(base_name);
+            }
+        }
+        for(std::set<std::string>::iterator it = new_dependencies->begin();
+            it != new_dependencies->end();it++){
+            if(dependencies->find(*it) == dependencies->end()){
+                Symbol *dependency_symbol = table->search_table(*it);
+                if(dependency_symbol == nullptr){
+                    dependency_symbol = new Symbol(*it, base_name);
+                    table->add_to_level(*it, dependency_symbol);
+                }
+            }
+        }
+    }
+    else{
+        std::set<std::string> *bad = check_dependencies(dependencies, table);
+        if(bad->empty() == false){
+            std::cerr<<"ocl: line "<<e->line_num<<": ERROR: definition of "<<
+            base_name<<" uses undefined symbols\n";
+            // TODO: add the symbol that are being unsed erete
+        }
+        delete bad;
+    }
+    delete dependencies;
+    dependencies = new_dependencies;
 }
 
 std::set<std::string> *Symbol::process_def(){
-    return (*(iter_info.end() - 1))->definition->get_expression_deps();
+    return definition->get_expression_deps();
 }
 
-void Symbol::add_dependents(std::set<std::string> *dependencies,
-        SymbolTable *table){
-    std::string d = (*(iter_info.end()-1))->label;
-    for(std::set<std::string>::iterator depend = dependencies->begin();
-        depend != dependencies->end();depend++){
-        Symbol *dependency = table->search_table(*depend); 
-        if(dependency){
-            dependency->dependents->push_back(d);
+void Symbol::add_to_depedencies(std::set<std::string> *deps, SymbolTable *t){
+    for(std::set<std::string>::iterator it = deps->begin();
+        it != deps->end();it++){
+        Symbol *dependency_symbol = t->search_table(*it);
+        if(dependency_symbol == nullptr){
+            dependency_symbol = new Symbol(*it, base_name);
+            t->add_to_level(*it, dependency_symbol);
         }
         else{
-            dependency = new Symbol(*depend, d);
-            table->add_to_level(*depend, dependency);
+            dependency_symbol->dependents->insert(base_name);
         }
     }
 }
 
-void Symbol::redefine(symbol_t s, bool def, Expr* e, Type *t, SymbolTable *table){
-    if(def_number == -1) def_number = 0;
-    struct iter_info *new_info =  new struct iter_info;
-    new_info->def_or_expr = def;
-    new_info->definition = e;
-    new_info->type = t;
-    new_info->dependencies = new std::set<std::string>;
-    iter_info.push_back(new_info);
-    if(def){
-        new_info->label = ".D"+std::to_string(overall_def_num);
-        overall_def_num++;
-        new_info->dependencies = process_def();    
-        add_dependents(new_info->dependencies, table); 
+std::set<std::string> *Symbol::check_dependencies(std::set<std::string> *deps,
+    SymbolTable *t){
+    std::set<std::string> *bad_dependencies = new std::set<std::string>;
+    for(std::set<std::string>::iterator it = deps->begin();
+        it != deps->end();it++){
+        Symbol *dependency_symbol = t->search_table(*it);
+        if(dependency_symbol == nullptr || dependency_symbol->defined == false){
+            bad_dependencies->insert(*it);
+        }
     }
-    else {
-        new_info->label = ".A"+std::to_string(overall_assign_num);
-        overall_assign_num++;
-    }
+    return bad_dependencies;
 }

@@ -18,14 +18,6 @@ typedef enum {
     SYMBOL_PARAM
 } symbol_t;
 
-struct iter_info {
-    bool def_or_expr;
-    std::string label;   
-    Expr * definition;
-    Type * type;
-    std::set<std::string> *dependencies;
-};
-
 // does each iteration have dependents or does the symbol as a whole have dependents?
 
 // Inclined to say that the symbol as a whole has some set of dependents
@@ -41,14 +33,18 @@ class Symbol {
         Symbol(symbol_t, bool, std::string, Expr*, Type*, SymbolTable *);
         Symbol(std::string, std::string);
         std::set<std::string> *process_def();
-        void add_dependents(std::set<std::string> *, SymbolTable *);
+        void add_to_depedencies(std::set<std::string> *deps, SymbolTable *t);
+        std::set<std::string> *check_dependencies(std::set<std::string> *deps, SymbolTable *t);
         void redefine(symbol_t, bool, Expr*, Type *, SymbolTable *);
-        int def_number;
-        int working_set;
-        int printed;
+        bool defined;
+        bool def_or_expr;
+        bool func_or_not;
         std::string base_name;
-        std::vector<struct iter_info *> iter_info;
-        std::vector<std::string> *dependents;
+        Line * func_body;
+        Expr * definition;
+        Type * type;
+        std::set<std::string> *dependencies; // Items this symbol requires
+        std::set<std::string> *dependents; // Items that require this Symbol
 };
 
 #endif

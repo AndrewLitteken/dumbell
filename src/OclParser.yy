@@ -27,6 +27,7 @@ void add_to_syntax_tree(Line*, int);
 %skeleton "lalr1.cc"
 
 %union{
+    char * a;
     std::string* str;
     int num;
     class Line *line;
@@ -106,7 +107,7 @@ void add_to_syntax_tree(Line*, int);
 
 %type <num> indent begin_indent
 %type <line> program line_list line fill_line stmt decl loop_control line_type
-%type <expr> expr expr_or expr_and expr_eq expr_comp expr_add expr_mul expr_exp expr_bool expr_minus expr_int expr_inc expr_grp value_literals non_int_literal arg_list expr_list
+%type <expr> expr expr_or expr_and expr_eq expr_comp expr_add expr_mul expr_exp expr_bool expr_minus expr_int expr_inc expr_grp value_literals non_int_literal arg_list expr_list expr_print_list
 %type <str> name
 %{
 #include "OclDriver.h"
@@ -202,7 +203,7 @@ decl: name TOKEN_ASSIGN TOKEN_FUNCTION TOKEN_LEFT_PAREN arg_list TOKEN_RIGHT_PAR
     }
     ;
 
-stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr TOKEN_RIGHT_PAREN
+stmt: TOKEN_PRINT TOKEN_LEFT_PAREN expr_print_list TOKEN_RIGHT_PAREN
     {
         if(scope_stack.back().second[0]) scope_stack.back().second[0] = false; 
         Line *line_to_add = new Line(LINE_PRINT, std::string(), nullptr, nullptr, $3, nullptr, nullptr, nullptr, line_num);
@@ -537,6 +538,20 @@ expr_list   : expr TOKEN_COMMA expr_list
             { $$ = nullptr; }
             ;
 
+expr_print_list   : expr_or TOKEN_COMMA expr_print_list
+                  {
+                      Expr *e = new Expr(EXPR_PRINT_LIST, $1, $3, line_num);
+                      $$ = e;
+                  }
+                  | expr_or
+                  { 
+                      Expr *e = new Expr(EXPR_PRINT_LIST, $1, nullptr, line_num);
+                      $$ = e;
+                  }
+                  | /*empty*/
+                  { $$ = nullptr; }
+                  ;
+
 indent  : TOKEN_INDENT_TAB
         { 
             line_num++;
@@ -647,7 +662,26 @@ non_int_literal : TOKEN_BOOL_LITERAL
                 }
                 | TOKEN_STRING_LITERAL
                 {
-                    Expr *e = new Expr(EXPR_STRING_LITERAL, new std::string(*$1), line_num);
+                    std::string *value = new std::string();
+                    for(std::string::iterator s = $1->begin()+1;s !=
+                        $1->end()-1;s++){
+                        if(*s == '\\'){
+                            s++;
+                            switch (*s) {
+                                case 'n':
+                                    *value += '\n';
+                                    break;
+                                case 't':
+                                    *value += '\t';
+                                    break;
+                                default:
+                                    *value += *s;
+                                    break;
+                            }
+                        }
+                        else *value += *s;
+                    }
+                    Expr *e = new Expr(EXPR_STRING_LITERAL, *value, line_num);
                     $$ = e;
                 }
                 ;

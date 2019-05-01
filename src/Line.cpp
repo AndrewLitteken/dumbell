@@ -20,7 +20,7 @@ Line::Line(line_t l, std::string s, Type * t, Expr* ie, Expr *e, Expr *ne, Line 
 
 Line::~Line(){}
 
-void Line::name_resolve(SymbolTable *table){
+/*void Line::name_resolve(SymbolTable *table){
     bool result;
     bool dependency_result;
     std::set<std::string> checked;
@@ -89,6 +89,124 @@ void Line::name_resolve(SymbolTable *table){
 
     if(next) next->name_resolve(table);
     return;
+}*/
+
+void Line::evaluate(SymbolTable *table){
+    Expr *result_expr;
+    Line *curr;
+    switch(kind){
+        case LINE_VAR_DEF:
+            symbol = table->search_table(name);
+            if(!symbol){
+                symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
+                    SYMBOL_GLOBAL;
+                symbol = new Symbol(k, true, name, expr, type, table);
+                table->add_to_level(name, symbol);
+            }
+            else{
+                symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
+                    SYMBOL_GLOBAL;
+                symbol->redefine(k, true, expr, type, table);
+                table->add_to_level(name, symbol);
+            }
+            break;
+        case LINE_FUNC_DEF:
+            symbol = table->search_table(name);
+            if(!symbol){
+                symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
+                    SYMBOL_GLOBAL;
+                symbol = new Symbol(k, false, name, expr, type, table);
+                table->add_to_level(name, symbol);
+            }
+            else{
+                symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
+                    SYMBOL_GLOBAL;
+                symbol->redefine(k, false, expr, type, table);
+                table->add_to_level(name, symbol);
+            }
+            break;
+        case LINE_EXPR:
+            result_expr = expr->evaluate(table);
+            break;
+        case LINE_IF:
+        case LINE_ELSE_IF:
+            result_expr = expr->evaluate(table);
+            if(result_expr->type->kind != TYPE_BOOL) return;
+            if(result_expr->literal_value == 1){
+                table->add_level();
+                curr = body;
+                while(curr){
+                    if(curr->kind != LINE_ELSE || curr->kind != LINE_ELSE_IF)
+                        curr->evaluate(table);
+                    curr = curr->next;
+                }
+                table->exit_level();
+            }
+            else{
+                if(else_body != nullptr)
+                    else_body->evaluate(table);
+            }
+            break;
+        case LINE_ELSE:
+            table->add_level();
+            curr = body;
+            while(curr){
+                if(curr->kind != LINE_ELSE || curr->kind != LINE_ELSE_IF)
+                    curr->evaluate(table);
+                curr = curr->next;
+            }
+            table->exit_level();
+            break;
+        case LINE_FOR:
+            break;
+        case LINE_WHILE:
+            result_expr = expr->evaluate(table);
+            if(result_expr->type->kind != TYPE_BOOL) return;
+            while(result_expr->literal_value == 1){
+                table->add_level();
+                curr = body;
+                while(curr){
+                    curr->evaluate(table);
+                    curr = curr->next;
+                }
+                table->exit_level();
+                result_expr = expr->evaluate(table);
+                if(result_expr->type->kind != TYPE_BOOL) return;
+            }
+            break;
+        case LINE_PRINT:
+            result_expr = expr->evaluate(table);
+            if(result_expr == nullptr) exit(1);
+            switch (result_expr->type->kind){
+                case TYPE_INTEGER:
+                    std::cout<<result_expr->literal_value;
+                    break;
+                case TYPE_FLOAT:
+                    std::cout<<result_expr->literal_fp_value;
+                    break;
+                case TYPE_BOOL:
+                    std::cout<<(bool) result_expr->literal_value;
+                    break;
+                case TYPE_STRING:
+                    std::cout<<result_expr->string_literal;
+                    break;
+                default:
+                    break;
+            }
+            break;
+        case LINE_RETURN:
+            break;
+        case LINE_BREAK:
+            break;
+        case LINE_PASS:
+            return;
+            break;
+        case LINE_CONTINUE:
+            return;
+            break;
+        default:
+            break;
+    }
 }
 
 void Line::print(int tabs){
@@ -159,14 +277,14 @@ void Line::print_name(int tabs){
     for(int i = 0;i<tabs;i++) std::cout<<"  ";
     switch(kind){
         case LINE_VAR_DEF:
-            std::cout<<symbol->base_name<<" at line "<<line_num<<": "<<symbol->iter_info[symbol->def_number++]->label<<std::endl;
+            std::cout<<symbol->base_name<<" at line "<<line_num<<": "<<symbol->base_name<<std::endl;
             std::cout<<"Dependent Definition: ";
-            symbol->printed = 1;
-            for(std::vector<std::string>::iterator dependents =      
+            //symbol->printed = 1;
+            for(std::set<std::string>::iterator dependents =      
                 symbol->dependents->begin();dependents != 
                 symbol->dependents->end();dependents++){
                 std::cout<<*dependents;
-                if (dependents != symbol->dependents->end() - 1)
+                if (dependents != std::prev(symbol->dependents->end()))
                     std::cout<<", ";
             }
             std::cout<<std::endl;
@@ -175,20 +293,20 @@ void Line::print_name(int tabs){
         case LINE_FUNC_DEF:
             break;
         case LINE_EXPR :
-            if(expr->kind == EXPR_ASSIGN) {
-                std::cout<<symbol->base_name<<" at line "<<line_num<<": "<<symbol->iter_info[symbol->def_number++]->label<<std::endl;
+            /*if(expr->kind == EXPR_ASSIGN) {
+                std::cout<<symbol->base_name<<" at line "<<line_num<<": "<<symbol->base_name<<std::endl;
                 std::cout<<"Dependent Definitions: ";
-                symbol->printed = 1;
-                for(std::vector<std::string>::iterator dependents =      
+                //symbol->printed = 1;
+                for(std::set<std::string>::iterator dependents =      
                     symbol->dependents->begin();dependents != 
                     symbol->dependents->end();dependents++){
                     std::cout<<*dependents;
-                    if (dependents != symbol->dependents->end() - 1)
+                    if (dependents != std::prev(symbol->dependents->end()))
                         std::cout<<", ";
                 }
                 std::cout<<std::endl;
                 std::cout<<"-------------------"<<std::endl;
-            }
+            }*/
             break;
         case LINE_IF:
             break;

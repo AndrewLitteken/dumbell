@@ -39,7 +39,7 @@ WS [ \t]
 ^[ ]+ {yylval->str = new std::string(yytext, yyleng); return token::TOKEN_INDENT_SPACE; }
 {WS}
 \"(\\\"|\\[^\"]|[^\\\"\n\t])*\"|\'(\\\'|\\[^\']|[^\\\'\n\t])*\' {
-    return token::TOKEN_STRING_LITERAL;
+    yylval->str = new std::string(yytext, yyleng); return token::TOKEN_STRING_LITERAL;
 }
 ; { return token::TOKEN_SEMI; }
 if { return token::TOKEN_IF; }

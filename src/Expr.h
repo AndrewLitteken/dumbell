@@ -3,6 +3,7 @@
 
 #include "SymbolTable.h"
 #include "Symbol.h"
+#include "Type.h"
 #include <string>
 #include <set>
 
@@ -32,12 +33,14 @@ typedef enum {
 	EXPR_INC,
 	EXPR_DEC,
 	EXPR_ARG,
+	EXPR_PRINT_LIST,
 	EXPR_CALL,
     EXPR_NAME,
     EXPR_INT_LITERAL,
     EXPR_FP_LITERAL,
     EXPR_BOOL_LITERAL,
-    EXPR_STRING_LITERAL
+    EXPR_STRING_LITERAL,
+    EXPR_NOT_MATCH // only for type checking
 } expr_t;
 
 class Expr {
@@ -53,9 +56,12 @@ class Expr {
         bool check_side_effects(bool);
         bool dependency_resolve(SymbolTable *, std::set<std::string> &,
             std::set<std::string> &);
+        Expr * evaluate(SymbolTable *);
+        expr_t match_type(Expr *, Expr *);
         expr_t kind;
 		Expr *left;
 		Expr *right;
+		Type *type;
 		std::string name; 
 		int literal_value;
         double literal_fp_value;

@@ -24,11 +24,8 @@ int main(int argc, char * argv[]){
     bool result = driver.parse_stream(infile, argv[1]);
     if(result){
         std::cout<<"Parsing successful"<<std::endl;
-        if(driver.syntax_tree) driver.print();
-//        return 0;
+        driver.track_names();
     }
     else std::cout<<"Parsing unsuccessful"<<std::endl;
-    driver.track_names();
-    driver.print_name();
     return 1;
 }
