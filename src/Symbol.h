@@ -4,6 +4,7 @@
 #include "Type.h"
 #include "Expr.h"
 #include "SymbolTable.h"
+#include "Line.h"
 #include <map>
 #include <set>
 #include <string>
@@ -27,6 +28,8 @@ typedef enum {
 // TODO:  Think about this ^
 
 // think about adding scope to the iteration info, maybe with some sort of interger check?
+
+class Line;
 
 class Symbol {
     public:

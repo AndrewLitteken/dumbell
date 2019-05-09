@@ -23,16 +23,20 @@ typedef enum {
     LINE_CONTINUE
 } line_t;
 
+class Expr;
+class Symbol;
+class SymbolTable;
+
 class Line {
     public:
-        Line(line_t, std::string, Type *, Expr*, Expr *, Expr *, Line *, Line *, int); 
+        Line(line_t, Expr *e, Type *, Expr*, Expr *, Expr *, Line *, Line *, int); 
         ~Line();
         void print(int);
         void print_name(int);
         void name_resolve(SymbolTable *);
         void evaluate(SymbolTable *);
         line_t kind;
-        std::string name;
+        Expr *loc;
         Symbol *symbol;
         Type *type;
         Expr *init_expr;

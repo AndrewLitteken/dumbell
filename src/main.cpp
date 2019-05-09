@@ -1,14 +1,15 @@
 #include <iostream>
 #include <fstream>
 
-#include "OclDriver.h"
+#include "DblDriver.h"
 
 typedef std::pair<int, std::vector<bool> > scope_info;
 std::vector<scope_info> scope_stack;
 std::vector<Line *> tails;
+int error_val = 0;
 
 int main(int argc, char * argv[]){
-    yy::oclDriver driver;
+    yy::dblDriver driver;
     std::fstream infile(argv[1]);
     if(!infile.good()){
         std::cerr <<"Could not open file: "<<argv[1]<<std::endl;
@@ -23,8 +24,7 @@ int main(int argc, char * argv[]){
     scope_stack.push_back(std::make_pair(0, flags));
     bool result = driver.parse_stream(infile, argv[1]);
     if(result){
-        std::cout<<"Parsing successful"<<std::endl;
-        driver.track_names();
+        driver.evaluate(argc, argv);
     }
     else std::cout<<"Parsing unsuccessful"<<std::endl;
     return 1;

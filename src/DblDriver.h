@@ -1,15 +1,15 @@
-#ifndef OCL_DRIVER_H
-#define OCL_DRIVER_H
+#ifndef DBL_DRIVER_H
+#define DBL_DRIVER_H
 #include <string>
 #include <vector>
 #include "Line.h"
 
 namespace yy {
 
-class oclDriver {
+class dblDriver {
     public:
-        oclDriver();
-        ~oclDriver();   
+        dblDriver();
+        ~dblDriver();   
      
         std::string streamname;
 
@@ -24,7 +24,7 @@ class oclDriver {
 
         bool parse_file(const std::string& filename);
 
-        bool track_names();
+        bool evaluate(int, char **);
 
         void print();
         void print_name();

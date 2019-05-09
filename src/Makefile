@@ -2,20 +2,20 @@ CC = g++
 LDFLAGS = -L/usr/local/opt/flex/lib
 CPPFLAGS = -Wall -I/usr/local/opt/flex/include
 
-TARGETS = ocl
+TARGETS = dbl
 
 all: $(TARGETS)
 
-ocl: main.o OclParser.o OclDriver.o OclScanner.o Line.o Expr.o Symbol.o Type.o SymbolTable.o
+dbl: main.o DblParser.o DblDriver.o DblScanner.o Line.o Expr.o Symbol.o Type.o SymbolTable.o
 	$(CC) $(CPPFLAGS) $(LDFLAGS) -o $@ $^
 
-main.o: main.cpp OclDriver.h
+main.o: main.cpp DblDriver.h
 	$(CC) $(CPPFLAGS) -c -o $@ $<
 
-OclDriver.o: OclDriver.cpp OclDriver.h OclScanner.h
+DblDriver.o: DblDriver.cpp DblDriver.h DblScanner.h
 	$(CC) $(CPPFLAGS) -c -o $@ $<
 
-OclScanner.o: OclScanner.cpp 
+DblScanner.o: DblScanner.cpp 
 	$(CC) $(CPPFLAGS) -c -o $@ $<
 
 Expr.o: Expr.cpp Expr.h
@@ -33,14 +33,14 @@ Symbol.o: Symbol.cpp Symbol.h Type.h Expr.h
 SymbolTable.o: SymbolTable.cpp SymbolTable.h Symbol.h Type.h Expr.h
 	$(CC) $(CPPFLAGS) -c -o $@ $<
 
-OclScanner.cpp: OclScanner.ll OclParser.h OclScanner.h
+DblScanner.cpp: DblScanner.ll DblParser.h DblScanner.h
 	flex -o$@ $<
 
-OclParser.o: OclParser.cpp OclParser.h
+DblParser.o: DblParser.cpp DblParser.h
 	$(CC) $(CPPFLAGS) -c -o $@ $<
 
-OclParser.cpp OclParser.h: OclParser.yy
-	bison -v -o OclParser.cpp $<
+DblParser.cpp DblParser.h: DblParser.yy
+	bison -v -o DblParser.cpp $<
 
 clean:
-	rm -f $(TARGETS) *.o OclScanner.cpp OclParser.h OclParser.cpp OclParser.output *.hh
+	rm -f $(TARGETS) *.o DblScanner.cpp DblParser.h DblParser.cpp DblParser.output *.hh

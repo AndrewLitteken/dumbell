@@ -6,9 +6,11 @@
 #include <string>
 #include <iostream>
 
-Line::Line(line_t l, std::string s, Type * t, Expr* ie, Expr *e, Expr *ne, Line *b, Line *eb, int ln){
+extern int error_val;
+
+Line::Line(line_t l, Expr* s, Type * t, Expr* ie, Expr *e, Expr *ne, Line *b, Line *eb, int ln){
     kind = l;
-    name = s;
+    loc = s;
     type = t;
     init_expr = ie;
     expr = e;
@@ -20,139 +22,99 @@ Line::Line(line_t l, std::string s, Type * t, Expr* ie, Expr *e, Expr *ne, Line 
 
 Line::~Line(){}
 
-/*void Line::name_resolve(SymbolTable *table){
-    bool result;
-    bool dependency_result;
-    std::set<std::string> checked;
-    std::set<std::string> good_symbols;
-    switch(kind){
-        case LINE_VAR_DEF:
-            symbol = table->search_table(name);
-            if(!symbol){
-                symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
-                    SYMBOL_GLOBAL;
-                symbol = new Symbol(k, true, name, expr, type, table);
-                table->add_to_level(name, symbol);
-            }
-            else{
-                symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
-                    SYMBOL_GLOBAL;
-                symbol->redefine(k, true, expr, type, table);
-            }
-            symbol->working_set = 1;
-            break;
-        case LINE_EXPR:
-            if(expr->kind == EXPR_ASSIGN){
-                dependency_result = expr->right->dependency_resolve(table, checked, good_symbols);
-                if(!dependency_result){
-                    std::cerr<<"ocl: line "<<line_num<<": ERROR: Unable to resolve depedencies for expression to evaluate "<<expr->left->name<<" at line "<<line_num<<std::endl;
-                }
-                result = true;
-            }
-            else {
-                dependency_result = expr->dependency_resolve(table, checked, good_symbols);
-                result = expr->check_side_effects(true);
-            }
-            if(expr->kind == EXPR_ASSIGN){
-                std::string n = expr->left->name;
-                symbol = table->search_table(n);
-                if(!symbol){
-                    symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL                         : SYMBOL_GLOBAL;
-                    symbol = new Symbol(k, false, n, expr, type, table);
-                    table->add_to_level(n, symbol);
-                }
-                else{
-                    symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL 
-                        : SYMBOL_GLOBAL;
-                    symbol->redefine(k, false, expr, type, table);
-                }
-                symbol->working_set = 1;
-            }
-            else if(result && (expr->kind != EXPR_INC && 
-                expr->kind != EXPR_DEC)){
-                std::cout<<"ocl: line "<<line_num<<": WARNING: part of expression at line "
-                    <<line_num<<" has no effect on result of program"
-                    <<std::endl;
-            }
-            else if(!result){
-                std::cout<<"ocl: line "<<line_num<<": WARNING: Expression at line "<<line_num<<
-                    " has no effect on result of program"<<std::endl;
-            }
-            break;
-        case LINE_IF:
-            //expr->name_resolve(table, true);
-            //expr->dependency_resolve(table, checked, good_symbols);
-            break;
-        default:
-            break;
-    }
-
-    if(next) next->name_resolve(table);
-    return;
-}*/
-
 void Line::evaluate(SymbolTable *table){
     Expr *result_expr;
     Line *curr;
+    std::string name;
     switch(kind){
         case LINE_VAR_DEF:
-            symbol = table->search_table(name);
-            if(!symbol){
-                symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
-                    SYMBOL_GLOBAL;
-                symbol = new Symbol(k, true, name, expr, type, table);
-                table->add_to_level(name, symbol);
+            if(loc->kind == EXPR_NAME){
+                name = loc->name;
+                symbol = table->search_table(name);
+                if(!symbol){
+                    symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
+                        SYMBOL_GLOBAL;
+                    symbol = new Symbol(k, true, name, expr, type, table);
+                    table->add_to_level(name, symbol);
+                }
+                else{
+                    symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
+                        SYMBOL_GLOBAL;
+                    symbol->redefine(k, true, expr, type, table);
+                    table->add_to_level(name, symbol);
+                }
             }
-            else{
-                symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
-                    SYMBOL_GLOBAL;
-                symbol->redefine(k, true, expr, type, table);
-                table->add_to_level(name, symbol);
+            else {
+                Expr *left_eval = loc->left->evaluate(table);
+                Expr *curr_right_expr = loc->right;
+                Expr *dereferenced = left_eval;
+                list_item *item = nullptr;
+                if(dereferenced->kind != EXPR_LIST){
+                    std::cerr<<"dbl: Line "<<line_num<<": can only assign to dereference lists, not "<<print_kind(dereferenced->kind)<<std::endl;
+                    error_val = 3;
+                    return;
+                }
+                Expr *evaled = curr_right_expr->evaluate(table);
+                if(evaled == nullptr) {
+                    return;
+                }
+                if(evaled->kind != EXPR_INT_LITERAL){
+                    std::cerr<<"dbl: Line "<<line_num<<": can only dereference lists with integer values"<<std::endl;
+                    error_val = 3;
+                    return;
+                }
+                if(evaled->literal_value >= dereferenced->size || evaled->literal_value < 0){
+                    std::cerr<<"dbl: Line "<<line_num<<": index "<<evaled->literal_value<<" is out of range"<<std::endl;
+                    error_val = 1;
+                    return;
+                }
+                item = dereferenced->list.at(dereferenced->size - 1 - evaled->literal_value);
+                *(item->e) = *expr;
+                item->t = OTHER;
             }
             break;
         case LINE_FUNC_DEF:
-            symbol = table->search_table(name);
-            if(!symbol){
-                symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
-                    SYMBOL_GLOBAL;
-                symbol = new Symbol(k, false, name, expr, type, table);
-                table->add_to_level(name, symbol);
-            }
-            else{
-                symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
-                    SYMBOL_GLOBAL;
-                symbol->redefine(k, false, expr, type, table);
-                table->add_to_level(name, symbol);
-            }
             break;
         case LINE_EXPR:
             result_expr = expr->evaluate(table);
+            if(error_val != 0) return;
             break;
         case LINE_IF:
         case LINE_ELSE_IF:
             result_expr = expr->evaluate(table);
-            if(result_expr->type->kind != TYPE_BOOL) return;
+            if(error_val != 0) return;
+            if(result_expr->type->kind != TYPE_BOOL){
+                std::cerr<<"dbl: Line "<<line_num<<": if statement must act on a boolean value"<<std::endl;
+                error_val = 4;
+                return;
+            }
             if(result_expr->literal_value == 1){
                 table->add_level();
                 curr = body;
                 while(curr){
-                    if(curr->kind != LINE_ELSE || curr->kind != LINE_ELSE_IF)
+                    if(curr->kind != LINE_ELSE || curr->kind != LINE_ELSE_IF){
                         curr->evaluate(table);
+                        if(error_val != 0) return;
+                    }
                     curr = curr->next;
                 }
                 table->exit_level();
             }
             else{
-                if(else_body != nullptr)
+                if(else_body != nullptr){
                     else_body->evaluate(table);
+                    if(error_val != 0) return;
+                }
             }
             break;
         case LINE_ELSE:
             table->add_level();
             curr = body;
             while(curr){
-                if(curr->kind != LINE_ELSE || curr->kind != LINE_ELSE_IF)
+                if(curr->kind != LINE_ELSE || curr->kind != LINE_ELSE_IF){
                     curr->evaluate(table);
+                    if(error_val != 0) return;
+                }
                 curr = curr->next;
             }
             table->exit_level();
@@ -161,36 +123,49 @@ void Line::evaluate(SymbolTable *table){
             break;
         case LINE_WHILE:
             result_expr = expr->evaluate(table);
-            if(result_expr->type->kind != TYPE_BOOL) return;
+            if(error_val != 0) return;
+            if(result_expr->type->kind != TYPE_BOOL) {
+                std::cerr<<"dbl: Line "<<line_num<<": while loop must act on a boolean value"<<std::endl;
+                error_val = 4;
+                return;
+            }
             while(result_expr->literal_value == 1){
                 table->add_level();
                 curr = body;
                 while(curr){
                     curr->evaluate(table);
+                    if(error_val != 0) return;
                     curr = curr->next;
                 }
                 table->exit_level();
                 result_expr = expr->evaluate(table);
-                if(result_expr->type->kind != TYPE_BOOL) return;
+                if(error_val != 0) return;
+                if(result_expr->type->kind != TYPE_BOOL){
+                    std::cerr<<"dbl: Line "<<line_num<<": while loop must act on a boolean value"<<std::endl;
+                    error_val = 4;
+                    return;
+                }
             }
             break;
         case LINE_PRINT:
             result_expr = expr->evaluate(table);
-            if(result_expr == nullptr) exit(1);
-            switch (result_expr->type->kind){
-                case TYPE_INTEGER:
+            if(error_val != 0) return;
+            if(result_expr == nullptr) return;
+            switch (result_expr->kind){
+                case EXPR_INT_LITERAL:
                     std::cout<<result_expr->literal_value;
                     break;
-                case TYPE_FLOAT:
+                case EXPR_FP_LITERAL:
                     std::cout<<result_expr->literal_fp_value;
                     break;
-                case TYPE_BOOL:
+                case EXPR_BOOL_LITERAL:
                     std::cout<<(bool) result_expr->literal_value;
                     break;
-                case TYPE_STRING:
+                case EXPR_STRING_LITERAL:
                     std::cout<<result_expr->string_literal;
                     break;
                 default:
+                    std::cout<<"dbl: Line "<<line_num<<": no string representation for "<<print_kind(result_expr->kind)<<std::endl;
                     break;
             }
             break;

@@ -6,6 +6,21 @@
 #include "Type.h"
 #include <string>
 #include <set>
+#include <vector>
+
+class Expr;
+
+typedef enum content_type {
+	INT,
+	STR,
+	BOOL,
+	OTHER
+} content_type;
+
+typedef struct list_item {
+	Expr *e;
+	content_type t;
+} list_item;
 
 typedef enum {
 	EXPR_ADD,
@@ -40,16 +55,24 @@ typedef enum {
     EXPR_FP_LITERAL,
     EXPR_BOOL_LITERAL,
     EXPR_STRING_LITERAL,
+    EXPR_DEREF,
+    EXPR_PROP,
+    EXPR_LIST,
+    EXPR_LIST_ITEM,
     EXPR_NOT_MATCH // only for type checking
 } expr_t;
+
+std::string print_kind(expr_t kind);
 
 class Expr {
 	public:
 		Expr(expr_t, Expr *, Expr *, int);
 		Expr(expr_t, const std::string, int);
+		Expr(expr_t, Expr *, Expr *, const std::string, int);
         Expr(expr_t, int, int);
         Expr(expr_t, bool, int);
         Expr(expr_t, double, int);
+        Expr(Expr *);
         ~Expr();
 		void print();
         std::set<std::string>* get_expression_deps();
@@ -62,10 +85,12 @@ class Expr {
 		Expr *left;
 		Expr *right;
 		Type *type;
+		int size;
 		std::string name; 
 		int literal_value;
         double literal_fp_value;
 		std::string string_literal;
+		std::vector<list_item *> list;
         int line_num;
 };
 
