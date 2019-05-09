@@ -1,6 +1,6 @@
 CC = g++
 LDFLAGS = -L/usr/local/opt/flex/lib
-CPPFLAGS = -Wall -I/usr/local/opt/flex/include
+CPPFLAGS = -Wall -std=c++11 -I/usr/local/opt/flex/include
 
 TARGETS = dbl
 
