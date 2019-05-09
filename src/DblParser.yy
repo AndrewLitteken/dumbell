@@ -105,6 +105,7 @@ void add_to_syntax_tree(Line*, int);
 %token TOKEN_ERROR
 %token TOKEN_DOT
 %token TOKEN_SEMI
+%token TOKEN_PART_EVAL
 
 %type <num> indent begin_indent
 %type <line> program line_list line fill_line stmt decl loop_control line_type
@@ -500,6 +501,11 @@ expr_inc: expr_loc TOKEN_INCREMENT
             Expr *prop = new Expr(EXPR_PROP, $1, nullptr, *$3, line_num);
             $$ = prop;
         }
+        | TOKEN_PART_EVAL expr_grp
+        {
+            Expr *e = new Expr(EXPR_PART_EVAL, nullptr, $2, line_num);
+            $$ = e;
+        }
 		| expr_grp
 		{
             $$ = $1;
@@ -553,7 +559,7 @@ expr_or_list: expr_or TOKEN_COMMA expr_or_list
                 $$ = e;
             }
             | /*empty*/
-            { $$ = nullptr; }
+            { $$ = new Expr(EXPR_LIST, nullptr, nullptr, line_num); }
             ;
 
 expr_print_list   : expr_or TOKEN_COMMA expr_print_list

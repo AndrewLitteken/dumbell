@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string>
 #include <set>
+#include <cmath>
 
 extern int error_val;
 
@@ -164,6 +165,49 @@ bool Expr::check_side_effects(bool top){
     return result;
 }
 
+void Expr::replace(Expr *e, std::string name){
+    if(left){
+        if(left->kind == EXPR_NAME && left->name == name){
+            left = new Expr(e);
+        }
+        else{
+            left->replace(e, name);
+        }
+    }
+    if(right){
+        if(right->kind == EXPR_NAME && right->name == name){
+            std::cout<<"here 2"<<std::endl;
+            right = new Expr(e);
+        }
+        else{
+            right->replace(e, name);
+        }
+    }
+}
+
+void Expr::partial_eval(SymbolTable *table){
+    if(left){
+        if(left->kind == EXPR_PART_EVAL){
+            Expr *e = left->evaluate(table);
+            if(e == nullptr) return;
+            left = new Expr(e);
+        }
+        else{
+            left->partial_eval(table);
+        }
+    }
+    if(right){
+        if(right->kind == EXPR_PART_EVAL){
+            Expr *e = right->evaluate(table);
+            if(e == nullptr) return;
+            right = new Expr(e);
+        }
+        else{
+            right->partial_eval(table);
+        }
+    }
+}
+
 // Back trace dependencies to find circular or undefined dependency
 // Alter to pass throug a set of checked good values and checked values.  Baiscally a depth first search
 bool Expr::dependency_resolve(SymbolTable *table, std::set<std::string> 
@@ -321,6 +365,9 @@ std::string print_kind(expr_t kind){
             break;
         case EXPR_LIST_ITEM:
             output = "list item";
+            break;
+        case EXPR_PART_EVAL:
+            output = "partial evaluation";
             break;
         default:
             break;
@@ -576,7 +623,12 @@ Expr * Expr::evaluate(SymbolTable *table){
                 std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<"are not compatible"<<std::endl;
                 return nullptr;
             }
-            return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_value == right_result->literal_value, left_result->line_num);
+            if(result == EXPR_INT_LITERAL)
+                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_value == right_result->literal_value, left_result->line_num);
+            if(result == EXPR_FP_LITERAL)
+                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_fp_value == right_result->literal_fp_value, left_result->line_num);
+            if(result == EXPR_STRING_LITERAL)
+                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->string_literal == right_result->string_literal, left_result->line_num);
             break;
         case EXPR_NEQ:
             if(left_result == nullptr || right_result == nullptr) return nullptr;
@@ -585,7 +637,12 @@ Expr * Expr::evaluate(SymbolTable *table){
                 std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<"are not compatible"<<std::endl;
                 return nullptr;
             }
-            return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_value != right_result->literal_value, left_result->line_num);
+            if(result == EXPR_INT_LITERAL)
+                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_value != right_result->literal_value, left_result->line_num);
+            if(result == EXPR_FP_LITERAL)
+                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_fp_value != right_result->literal_fp_value, left_result->line_num);
+            if(result == EXPR_STRING_LITERAL)
+                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->string_literal != right_result->string_literal, left_result->line_num);
 			break;
         case EXPR_LT:
             if(left_result == nullptr || right_result == nullptr) return nullptr;
@@ -676,7 +733,28 @@ Expr * Expr::evaluate(SymbolTable *table){
                 return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_fp_value <= right_result->literal_fp_value, left_result->line_num);
 			break;
         case EXPR_EXP:
-			break;
+            if(right_result == nullptr || left_result == nullptr) return nullptr;
+            result = match_type(left_result, right_result);
+            if(result == EXPR_NOT_MATCH) {
+                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<"are not compatible"<<std::endl;
+                error_val = 2;
+                return nullptr;
+            }
+            if(result != EXPR_INT_LITERAL && result != EXPR_FP_LITERAL){
+                std::cerr<<"dbl: Line "<<line_num<<": type of "<<print_kind(result)<<" is not an integer or floating point value"<<std::endl;
+                error_val = 3;
+                return nullptr;
+            }
+            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                return_expr = new Expr(result, (int) std::pow(left_result->literal_value, right_result->literal_value), left_result->line_num);
+            }
+            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL)
+                return_expr = new Expr(result, std::pow(left_result->literal_value, right_result->literal_fp_value), left_result->line_num);
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_INT_LITERAL)
+                return_expr = new Expr(result, std::pow(left_result->literal_fp_value, right_result->literal_value), left_result->line_num);
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_FP_LITERAL)
+                return_expr = new Expr(result, std::pow(left_result->literal_fp_value, right_result->literal_fp_value), left_result->line_num);
+            break;
         case EXPR_NOT:
             if(right_result == nullptr) return nullptr;
             if(right_result->kind != EXPR_BOOL_LITERAL) {
@@ -789,6 +867,10 @@ Expr * Expr::evaluate(SymbolTable *table){
                 std::string r = std::string(1, left_result->string_literal.at(right_result->literal_value));
                 return_expr = new Expr(EXPR_STRING_LITERAL, r, line_num);
             }
+            break;
+        case EXPR_PART_EVAL:
+            if(right_result == nullptr) return nullptr;
+            return_expr = new Expr(right_result);
             break;
         case EXPR_PROP:
             if(left_result == nullptr) return nullptr;

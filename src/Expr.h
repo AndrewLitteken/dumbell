@@ -59,6 +59,7 @@ typedef enum {
     EXPR_PROP,
     EXPR_LIST,
     EXPR_LIST_ITEM,
+    EXPR_PART_EVAL,
     EXPR_NOT_MATCH // only for type checking
 } expr_t;
 
@@ -75,6 +76,8 @@ class Expr {
         Expr(Expr *);
         ~Expr();
 		void print();
+		void replace(Expr *, std::string);
+		void partial_eval(SymbolTable *);
         std::set<std::string>* get_expression_deps();
         bool check_side_effects(bool);
         bool dependency_resolve(SymbolTable *, std::set<std::string> &,

@@ -34,13 +34,20 @@ void Line::evaluate(SymbolTable *table){
                 if(!symbol){
                     symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
                         SYMBOL_GLOBAL;
+                    expr->partial_eval(table);
+                    if(error_val != 0) return;
                     symbol = new Symbol(k, true, name, expr, type, table);
                     table->add_to_level(name, symbol);
                 }
                 else{
                     symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
                         SYMBOL_GLOBAL;
-                    symbol->redefine(k, true, expr, type, table);
+                    Expr *new_expr = new Expr(expr);
+                    new_expr->replace(symbol->definition, name);
+                    new_expr->partial_eval(table);
+                    if(error_val != 0) return;
+                    delete symbol->definition;
+                    symbol->redefine(k, true, new_expr, type, table);
                     table->add_to_level(name, symbol);
                 }
             }
@@ -83,7 +90,7 @@ void Line::evaluate(SymbolTable *table){
         case LINE_ELSE_IF:
             result_expr = expr->evaluate(table);
             if(error_val != 0) return;
-            if(result_expr->type->kind != TYPE_BOOL){
+            if(result_expr->kind != EXPR_BOOL_LITERAL){
                 std::cerr<<"dbl: Line "<<line_num<<": if statement must act on a boolean value"<<std::endl;
                 error_val = 4;
                 return;
@@ -124,7 +131,7 @@ void Line::evaluate(SymbolTable *table){
         case LINE_WHILE:
             result_expr = expr->evaluate(table);
             if(error_val != 0) return;
-            if(result_expr->type->kind != TYPE_BOOL) {
+            if(result_expr->kind != EXPR_BOOL_LITERAL) {
                 std::cerr<<"dbl: Line "<<line_num<<": while loop must act on a boolean value"<<std::endl;
                 error_val = 4;
                 return;
@@ -140,7 +147,7 @@ void Line::evaluate(SymbolTable *table){
                 table->exit_level();
                 result_expr = expr->evaluate(table);
                 if(error_val != 0) return;
-                if(result_expr->type->kind != TYPE_BOOL){
+                if(result_expr->kind != EXPR_BOOL_LITERAL){
                     std::cerr<<"dbl: Line "<<line_num<<": while loop must act on a boolean value"<<std::endl;
                     error_val = 4;
                     return;

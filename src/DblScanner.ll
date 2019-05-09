@@ -61,6 +61,7 @@ in { return token::TOKEN_IN; }
 {DIGIT}+ {yylval->str = new std::string(yytext, yyleng); return token::TOKEN_INTEGER_LITERAL; }
 ({LETTER})({LETTER}|{DIGIT}|_)* { yylval->str = new std::string(yytext, yyleng); return token::TOKEN_IDENTIFIER; }
 \. { return token::TOKEN_DOT; }
+\! { return token::TOKEN_PART_EVAL; }
 \( { return token::TOKEN_LEFT_PAREN; }
 \) { return token::TOKEN_RIGHT_PAREN; }
 \[ { return token::TOKEN_LEFT_BRACKET; }
@@ -75,6 +76,7 @@ in { return token::TOKEN_IN; }
 \\= { return token::TOKEN_DIVEQ; }
 \* { return token::TOKEN_MULTIPLY; }
 \/ { return token::TOKEN_DIVIDE; }
+\** { return token::TOKEN_EXPONENT; }
 % { return token::TOKEN_MOD; }
 \+ { return token::TOKEN_ADD; }
 \- { return token::TOKEN_MINUS; }
