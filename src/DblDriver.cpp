@@ -49,7 +49,7 @@ bool dblDriver::evaluate(int argc, char **argv){
         argv_list->list.push_back(item);
         argv_list->size++;
     }
-    Expr *argc_int = new Expr(EXPR_INT_LITERAL, argc, 0);
+    Expr *argc_int = new Expr(EXPR_INT_LITERAL, argc - 1, 0);
     Symbol *argv_sym = new Symbol(SYMBOL_GLOBAL, false, "argv", argv_list, nullptr, table);
     Symbol *argc_sym = new Symbol(SYMBOL_GLOBAL, false, "argc", argc_int, nullptr, table);
     table->add_to_level("argv", argv_sym);
