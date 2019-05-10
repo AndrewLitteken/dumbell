@@ -1,0 +1,37 @@
+
+i = 0
+print(i, "\n")
+while i < argv.size:
+    print("hi\n")
+    print(argv[i], "\n")
+    i = i+1
+
+x := a[2]
+a = ["1", "2", "3"]
+print(x, "\n")
+a[2] = "4"
+print(x, "\n")
+
+a = [[["a", "d"], "b"], "2", "3"]
+a[0][0][1] = "cold"
+print(a[0][0][1], "\n")
+
+a = "andrew"
+print(a[0], "\n")
+
+a = ["1", "2", "3"]
+b = ["4", "5", "6"]
+c = a + b
+
+i = 0
+while i < 6:
+    print(c[i], ",")
+    i += 1
+print("\n")
+
+a = "hello"
+b = "world"
+c = a + " " + b + "\n"
+print(c)
+
+print(c.size == 12, "\n")
