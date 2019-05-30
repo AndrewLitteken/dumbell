@@ -6,4 +6,4 @@ To compile this, you will need both **Flex** and **Bison**.  You may need to mod
 ## What Makes this Special
 With the edition of a `:=` operator, this lanuage allows for more control of evaluation.  This defines that the given expression will only evaluated when it is needed, not at the time of asignment.
 
-For more information visit the [website](andrewlitteken.com/dumbell)!
+For more information visit the [website](http://andrewlitteken.com/dumbell)!
