@@ -5,6 +5,7 @@
 #include "SymbolTable.h"
 #include <string>
 #include <iostream>
+#include <utility>
 
 extern int error_val;
 
@@ -136,15 +137,14 @@ void Line::evaluate(SymbolTable *table){
                 error_val = 4;
                 return;
             }
+            table->add_level();
             while(result_expr->literal_value == 1){
-                table->add_level();
                 curr = body;
                 while(curr){
                     curr->evaluate(table);
                     if(error_val != 0) return;
                     curr = curr->next;
                 }
-                table->exit_level();
                 result_expr = expr->evaluate(table);
                 if(error_val != 0) return;
                 if(result_expr->kind != EXPR_BOOL_LITERAL){
@@ -153,6 +153,7 @@ void Line::evaluate(SymbolTable *table){
                     return;
                 }
             }
+            table->exit_level();
             break;
         case LINE_PRINT:
             result_expr = expr->evaluate(table);

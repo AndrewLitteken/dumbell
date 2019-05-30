@@ -1,5 +1,4 @@
 number = argv[1]
-
 abs_val := 0
 result := negative*abs_val
 

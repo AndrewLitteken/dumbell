@@ -3,11 +3,14 @@
 #include "Symbol.h"
 #include "SymbolTable.h"
 #include <iostream>
+#include <vector>
+#include <utility>
 #include <string>
 #include <set>
 #include <cmath>
 
 extern int error_val;
+int test = 0;
 
 Expr::Expr(expr_t k, Expr *l, Expr *r, int ln) {
 	kind = k;
@@ -60,6 +63,7 @@ Expr::~Expr(void) {
 Expr::Expr(expr_t k, const std::string s, int ln) {
     kind = k;
     if(k == EXPR_NAME) {
+        saved_sym = nullptr;
         name = s;
         string_literal = std::string();
         size = -1;
@@ -176,7 +180,6 @@ void Expr::replace(Expr *e, std::string name){
     }
     if(right){
         if(right->kind == EXPR_NAME && right->name == name){
-            std::cout<<"here 2"<<std::endl;
             right = new Expr(e);
         }
         else{
@@ -376,6 +379,10 @@ std::string print_kind(expr_t kind){
 }
 
 Expr * Expr::evaluate(SymbolTable *table){
+    /*std::vector<Expr *> expr_stack;
+    std::vector<std::pair<Expr *, Expr *>> rl_stack;
+    expr_stack.push_back(this);
+    rl_stack.push_back(std::pair<Expr *, Expr *>(nullptr, nullptr));*/
     Expr *left_result = nullptr;
     Expr *right_result = nullptr;
     if(kind != EXPR_ASSIGN){
@@ -395,15 +402,21 @@ Expr * Expr::evaluate(SymbolTable *table){
     std::set<std::string> good_symbols;
     switch(kind){
         case EXPR_NAME:
-            resolved = dependency_resolve(table, checked_symbols, good_symbols);
-            if(resolved == false) return nullptr;
-            symbol = table->search_table(name);
+            if(saved_sym == nullptr){
+                symbol = table->search_table(name);
+                saved_sym = symbol;
+            }
+            else
+                symbol = saved_sym;
             if(!symbol){
                 std::cerr<<"dbl: symbol "<<name<<" undefined"<<std::endl;
                 error_val = 1;
                 return nullptr;
             }
             if(symbol->def_or_expr == true){
+                resolved = dependency_resolve(table, checked_symbols, good_symbols);
+                resolved = true;
+                if(resolved == false) return nullptr;
                 return_expr = new Expr(symbol->definition->evaluate(table));
             }
             else {
@@ -412,144 +425,160 @@ Expr * Expr::evaluate(SymbolTable *table){
             break;
         case EXPR_ADD:
             if(left_result == nullptr || right_result == nullptr) return nullptr;
-            result = match_type(left_result, right_result);
-            if(result == EXPR_NOT_MATCH) {
-                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<" are not compatible"<<std::endl;
-                error_val = 2;
-                return nullptr;
+            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                left_result->literal_value = left_result->literal_value + right_result->literal_value;
+                delete right_result;
+                return_expr = left_result;
             }
-            if(result != EXPR_INT_LITERAL && result != EXPR_FP_LITERAL && result != EXPR_STRING_LITERAL && result != EXPR_LIST){
-                std::cerr<<"dbl: Line "<<line_num<<": type of "<<print_kind(result)<<" is not an integer or floating point value"<<std::endl;
-                error_val = 3;
-                return nullptr;
+            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL){
+                left_result->kind = EXPR_FP_LITERAL;
+                left_result->literal_fp_value = left_result->literal_value + right_result->literal_fp_value;
+                delete right_result;
+                return_expr = left_result;
             }
-            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL)
-                return_expr = new Expr(result, left_result->literal_value + right_result->literal_value, left_result->line_num);
-            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL)
-                return_expr = new Expr(result, left_result->literal_value + right_result->literal_fp_value, left_result->line_num);
-            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_INT_LITERAL)
-                return_expr = new Expr(result, left_result->literal_fp_value + right_result->literal_value, left_result->line_num);
-            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_FP_LITERAL)
-                return_expr = new Expr(result, left_result->literal_fp_value + right_result->literal_fp_value, left_result->line_num);
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                left_result->kind = EXPR_FP_LITERAL;
+                left_result->literal_fp_value = left_result->literal_fp_value + right_result->literal_value;
+                delete right_result;
+                return_expr = left_result;
+            }
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_FP_LITERAL){
+                left_result->kind = EXPR_FP_LITERAL;
+                left_result->literal_fp_value = left_result->literal_fp_value + right_result->literal_fp_value;
+                delete right_result;
+                return_expr = left_result;
+            }
             else if(left_result->kind == EXPR_LIST && right_result->kind == EXPR_LIST){
-                return_expr = new Expr(right_result);
+                return_expr = right_result;
                 for(int i = 0;i < left_result->size;i++){
                     list_item *item = new list_item;
                     item->e = left_result->list[i]->e;
                     item->t = left_result->list[i]->t;
-                    return_expr->size++;
+                    return_expr->size = return_expr->size + 1;
                     return_expr->list.push_back(item);
-                } 
+                }
+                delete left_result;
             }
             else if(left_result->kind == EXPR_STRING_LITERAL && right_result->kind == EXPR_STRING_LITERAL){
-                return_expr = new Expr(EXPR_STRING_LITERAL, left_result->string_literal + right_result->string_literal + string_literal, line_num);
+                left_result->string_literal = left_result->string_literal + right_result->string_literal;
+                delete right_result;
+                return_expr = left_result;
+            }
+            else {
+                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<" are not compatible for addition"<<std::endl;
+                error_val = 2;
+                return nullptr;
             }
             break;
         case EXPR_SUB:
             if(left_result == nullptr || right_result == nullptr) return nullptr;
-            result = match_type(left_result, right_result);
-            if(result == EXPR_NOT_MATCH) {
-                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<"are not compatible"<<std::endl;
+            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                left_result->literal_value = left_result->literal_value - right_result->literal_value;
+            }
+            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL){
+                left_result->kind = EXPR_FP_LITERAL;
+                left_result->literal_fp_value = left_result->literal_value - right_result->literal_fp_value;
+            }
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                left_result->kind = EXPR_FP_LITERAL;
+                left_result->literal_fp_value = left_result->literal_fp_value - right_result->literal_value;
+            }
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_FP_LITERAL){
+                left_result->kind = EXPR_FP_LITERAL;
+                left_result->literal_fp_value = left_result->literal_fp_value - right_result->literal_fp_value;
+            }
+            else {
+                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<"are not compatible for subtraction"<<std::endl;
                 error_val = 2;
                 return nullptr;
             }
-            if(result != EXPR_INT_LITERAL && result != EXPR_FP_LITERAL){
-                std::cerr<<"dbl: Line "<<line_num<<": type of "<<print_kind(result)<<" is not an integer or floating point value"<<std::endl;
-                error_val = 3;
-                return nullptr;
-            }
-            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL)
-                return_expr = new Expr(result, left_result->literal_value - right_result->literal_value, left_result->line_num);
-            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL)
-                return_expr = new Expr(result, left_result->literal_value - right_result->literal_fp_value, left_result->line_num);
-            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_INT_LITERAL)
-                return_expr = new Expr(result, left_result->literal_fp_value - right_result->literal_value, left_result->line_num);
-            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_FP_LITERAL)
-                return_expr = new Expr(result, left_result->literal_fp_value - right_result->literal_fp_value, left_result->line_num);
+            delete right_result;
+            return_expr = left_result;
             break;
         case EXPR_MUL:
             if(left_result == nullptr || right_result == nullptr) return nullptr;
-            result = match_type(left_result, right_result);
-            if(result == EXPR_NOT_MATCH) {
-                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<"are not compatible"<<std::endl;
+            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                left_result->literal_value = left_result->literal_value * right_result->literal_value;
+            }
+            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL){
+                left_result->kind = EXPR_FP_LITERAL;
+                left_result->literal_fp_value = left_result->literal_value * right_result->literal_fp_value;
+            }
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                left_result->kind = EXPR_FP_LITERAL;
+                left_result->literal_fp_value = left_result->literal_fp_value * right_result->literal_value;
+            }
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_FP_LITERAL){
+                left_result->kind = EXPR_FP_LITERAL;
+                left_result->literal_fp_value = left_result->literal_fp_value * right_result->literal_fp_value;
+            }
+            else {
+                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<"are not compatible for multiplication"<<std::endl;
                 error_val = 2;
                 return nullptr;
             }
-            if(result != EXPR_INT_LITERAL && result != EXPR_FP_LITERAL){
-                std::cerr<<"dbl: Line "<<line_num<<": type of "<<print_kind(result)<<" is not an integer or floating point value"<<std::endl;
-                error_val = 3;
-                return nullptr;
-            }
-            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL)
-                return_expr = new Expr(result, left_result->literal_value * right_result->literal_value, left_result->line_num);
-            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL)
-                return_expr = new Expr(result, left_result->literal_value * right_result->literal_fp_value, left_result->line_num);
-            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_INT_LITERAL)
-                return_expr = new Expr(result, left_result->literal_fp_value * right_result->literal_value, left_result->line_num);
-            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_FP_LITERAL)
-                return_expr = new Expr(result, left_result->literal_fp_value * right_result->literal_fp_value, left_result->line_num);
+            delete right_result;
+            return_expr = left_result;
             break;
         case EXPR_DIV:
             if(left_result == nullptr || right_result == nullptr) return nullptr;
-            result = match_type(left_result, right_result);
-            if(result == EXPR_NOT_MATCH) {
-                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<"are not compatible"<<std::endl;
+            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                left_result->literal_value = left_result->literal_value / right_result->literal_value;
+            }
+            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL){
+                left_result->kind = EXPR_FP_LITERAL;
+                left_result->literal_fp_value = left_result->literal_value / right_result->literal_fp_value;
+            }
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                left_result->kind = EXPR_FP_LITERAL;
+                left_result->literal_fp_value = left_result->literal_fp_value / right_result->literal_value;
+            }
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_FP_LITERAL){
+                left_result->kind = EXPR_FP_LITERAL;
+                left_result->literal_fp_value = left_result->literal_fp_value / right_result->literal_fp_value;
+            }
+            else {
+                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<"are not compatible for division"<<std::endl;
                 error_val = 2;
                 return nullptr;
             }
-            if(result != EXPR_INT_LITERAL && result != EXPR_FP_LITERAL){
-                std::cerr<<"dbl: Line "<<line_num<<": type of "<<print_kind(result)<<" is not an integer or floating point value"<<std::endl;
-                error_val = 3;
-                return nullptr;
-            }
-            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL)
-                return_expr = new Expr(result, left_result->literal_value / right_result->literal_value, left_result->line_num);
-            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL)
-                return_expr = new Expr(result, left_result->literal_value / right_result->literal_fp_value, left_result->line_num);
-            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_INT_LITERAL)
-                return_expr = new Expr(result, left_result->literal_fp_value / right_result->literal_value, left_result->line_num);
-            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_FP_LITERAL)
-                return_expr = new Expr(result, left_result->literal_fp_value / right_result->literal_fp_value, left_result->line_num);
-			break;
+            delete right_result;
+            return_expr = left_result;
+            break;
         case EXPR_MOD:
             if(left_result == nullptr || right_result == nullptr) return nullptr;
-            result = match_type(left_result, right_result);
-            if(result == EXPR_NOT_MATCH) {
-                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<"are not compatible"<<std::endl;
-                error_val = 2;
-                return nullptr;
+            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                left_result->literal_value = left_result->literal_value % right_result->literal_value;
+                delete right_result;
+                return_expr = left_result;
             }
-            if(result != EXPR_INT_LITERAL){
-                std::cerr<<"dbl: Line "<<line_num<<": type of "<<print_kind(result)<<" is not an integer"<<std::endl;
-                error_val = 3;
-                return nullptr;
-            }
-            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL)
-                return_expr = new Expr(result, left_result->literal_value % right_result->literal_value, left_result->line_num);
             else {
+                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<"are not compatible for modulus"<<std::endl;
+                error_val = 2;
                 return nullptr;
             }
             break;
         case EXPR_ASSIGN:
-            resolved = right->dependency_resolve(table, checked_symbols, good_symbols);
-            if(resolved == false){
-                return nullptr;
-            }
             right_result = right->evaluate(table);
             if(right_result == nullptr) return nullptr;
             if(left->kind == EXPR_NAME){
-                symbol = table->search_table(left->name);
+                if(left->saved_sym == nullptr){
+                    symbol = table->search_table(left->name);
+                }
+                else{
+                    symbol = left->saved_sym;
+                }
                 if(!symbol){
                     symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
                         SYMBOL_GLOBAL;
                     symbol = new Symbol(k, false, left->name, right_result, right_result->type, table);
+                    left->saved_sym = symbol;
                     table->add_to_level(left->name, symbol);
                 }
                 else{
                     symbol_t k = table->current_level > 1 ? SYMBOL_INTERNAL : 
                         SYMBOL_GLOBAL;
                     symbol->redefine(k, false, right_result, right_result->type, table);
-                    table->add_to_level(left->name, symbol);
                 }
             }
             else {
@@ -584,51 +613,52 @@ Expr * Expr::evaluate(SymbolTable *table){
                 *(item->e) = *right_result;
             }
             return_expr = right_result;
-            return return_expr;
 			break;
         case EXPR_OR:
             if(left_result == nullptr || right_result == nullptr) return nullptr;
-            result = match_type(left_result, right_result);
-            if(result == EXPR_NOT_MATCH) {
-                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<"are not compatible"<<std::endl;
-                error_val = 2;
-                return nullptr;
+            if(left_result->kind == EXPR_BOOL_LITERAL && right_result->kind == EXPR_BOOL_LITERAL){
+                left_result->literal_value = left_result->literal_value || right_result->literal_value;
             }
-            if(result != EXPR_BOOL_LITERAL){
-                std::cerr<<"dbl: Line "<<line_num<<": type of "<<print_kind(result)<<" is not an boolean"<<std::endl;
+            else {
+                std::cerr<<"dbl: Line "<<line_num<<": type of "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<" not compatible for logical or"<<std::endl;
                 error_val = 3;
                 return nullptr;
             }
-            return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_value || right_result->literal_value, left_result->line_num);
+            delete right_result;
+            return_expr = left_result;
 			break;
         case EXPR_AND:
             if(left_result == nullptr || right_result == nullptr) return nullptr;
-            result = match_type(left_result, right_result);
-            if(result == EXPR_NOT_MATCH) {
-                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<"are not compatible"<<std::endl;
-                error_val = 2;
-                return nullptr;
+            if(left_result->kind == EXPR_BOOL_LITERAL && right_result->kind == EXPR_BOOL_LITERAL){
+                left_result->literal_value = left_result->literal_value && right_result->literal_value;
             }
-            if(result != EXPR_BOOL_LITERAL){
-                std::cerr<<"dbl: Line "<<line_num<<": type of "<<print_kind(result)<<" is not an boolean"<<std::endl;
+            else {
+                std::cerr<<"dbl: Line "<<line_num<<": type of "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<" not compatible for logical and"<<std::endl;
                 error_val = 3;
                 return nullptr;
             }
-            return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_value && right_result->literal_value, left_result->line_num);
+            delete right_result;
+            return_expr = left_result;
             break;
         case EXPR_EQ:
             if(left_result == nullptr || right_result == nullptr) return nullptr;
-            result = match_type(left_result, right_result);
-            if(result == EXPR_NOT_MATCH){
-                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<"are not compatible"<<std::endl;
+            return_expr = left_result;
+            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL)
+                return_expr->literal_value = left_result->literal_value == right_result->literal_value;
+            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL)
+                return_expr->literal_value = left_result->literal_value == right_result->literal_fp_value;
+            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL)
+                return_expr->literal_value = left_result->literal_fp_value == right_result->literal_fp_value;
+            else if(left_result->kind == EXPR_BOOL_LITERAL && right_result->kind == EXPR_BOOL_LITERAL)
+                return_expr->literal_value = left_result->literal_value == right_result->literal_fp_value;
+            else if(left_result->kind == EXPR_STRING_LITERAL && right_result->kind)
+                return_expr->literal_value = left_result->string_literal == right_result->string_literal;
+            else{
+                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<" are not compatible for equality"<<std::endl;
                 return nullptr;
             }
-            if(result == EXPR_INT_LITERAL)
-                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_value == right_result->literal_value, left_result->line_num);
-            if(result == EXPR_FP_LITERAL)
-                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_fp_value == right_result->literal_fp_value, left_result->line_num);
-            if(result == EXPR_STRING_LITERAL)
-                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->string_literal == right_result->string_literal, left_result->line_num);
+            return_expr->kind = EXPR_BOOL_LITERAL;
+            delete right_result;
             break;
         case EXPR_NEQ:
             if(left_result == nullptr || right_result == nullptr) return nullptr;
@@ -639,130 +669,141 @@ Expr * Expr::evaluate(SymbolTable *table){
             }
             if(result == EXPR_INT_LITERAL)
                 return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_value != right_result->literal_value, left_result->line_num);
-            if(result == EXPR_FP_LITERAL)
+            else if(result == EXPR_FP_LITERAL)
                 return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_fp_value != right_result->literal_fp_value, left_result->line_num);
-            if(result == EXPR_STRING_LITERAL)
+            else if(result == EXPR_STRING_LITERAL)
                 return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->string_literal != right_result->string_literal, left_result->line_num);
 			break;
         case EXPR_LT:
             if(left_result == nullptr || right_result == nullptr) return nullptr;
-            result = match_type(left_result, right_result);
-            if(result == EXPR_NOT_MATCH) {
-                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<" are not compatible"<<std::endl;
+            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                left_result->literal_value = left_result->literal_value < right_result->literal_value;
+            }
+            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL){
+                left_result->literal_value = left_result->literal_value < right_result->literal_value;
+            }
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                left_result->literal_value = left_result->literal_value < right_result->literal_value;
+            }
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_FP_LITERAL){
+                left_result->literal_value = left_result->literal_value < right_result->literal_value;
+            }
+            else {
+                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<" are not compatible for less than"<<std::endl;
                 error_val = 2;
                 return nullptr;
             }
-            if(result != EXPR_INT_LITERAL && result != EXPR_FP_LITERAL){
-                std::cerr<<"dbl: Line "<<line_num<<": type of "<<print_kind(result)<<" is not an integer or floating point value"<<std::endl;
-                error_val = 3;
-                return nullptr;
-            }
-            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL)
-                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_value < right_result->literal_value, left_result->line_num);
-            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL)
-                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_value < right_result->literal_fp_value, left_result->line_num);
-            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_INT_LITERAL)
-                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_fp_value < right_result->literal_value, left_result->line_num);
-            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_FP_LITERAL)
-                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_fp_value < right_result->literal_fp_value, left_result->line_num);
+            left_result->kind = EXPR_BOOL_LITERAL;
+            delete right_result;
+            return_expr = left_result;
 			break;
         case EXPR_LTE:
             if(left_result == nullptr || right_result == nullptr) return nullptr;
             result = match_type(left_result, right_result);
-            if(result == EXPR_NOT_MATCH) {
-                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<"are not compatible"<<std::endl;
+            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                left_result->literal_value = left_result->literal_value <= right_result->literal_value;
+            }
+            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL){
+                left_result->literal_value = left_result->literal_value <= right_result->literal_value;
+            }
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                left_result->literal_value = left_result->literal_value <= right_result->literal_value;
+            }
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_FP_LITERAL){
+                left_result->literal_value = left_result->literal_value <= right_result->literal_value;
+            }
+            else {
+                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<" are not compatible for less than or equal to"<<std::endl;
                 error_val = 2;
                 return nullptr;
             }
-            if(result != EXPR_INT_LITERAL && result != EXPR_FP_LITERAL){
-                std::cerr<<"dbl: Line "<<line_num<<": type of "<<print_kind(result)<<" is not an integer or floating point value"<<std::endl;
-                error_val = 3;
-                return nullptr;
-            }
-            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL)
-                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_value <= right_result->literal_value, left_result->line_num);
-            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL)
-                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_value <= right_result->literal_fp_value, left_result->line_num);
-            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_INT_LITERAL)
-                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_fp_value <= right_result->literal_value, left_result->line_num);
-            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_FP_LITERAL)
-                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_fp_value <= right_result->literal_fp_value, left_result->line_num);
+            left_result->kind = EXPR_BOOL_LITERAL;
+            delete right_result;
+            return_expr = left_result;
 			break;
         case EXPR_GT:
             if(left_result == nullptr || right_result == nullptr) return nullptr;
-            result = match_type(left_result, right_result);
-            if(result == EXPR_NOT_MATCH) {
-                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<"are not compatible"<<std::endl;
+            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                left_result->literal_value = left_result->literal_value > right_result->literal_value;
+            }
+            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL){
+                left_result->literal_value = left_result->literal_value > right_result->literal_value;
+            }
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                left_result->literal_value = left_result->literal_value > right_result->literal_value;
+            }
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_FP_LITERAL){
+                left_result->literal_value = left_result->literal_value > right_result->literal_value;
+            }
+            else {
+                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<" are not compatible for greater than"<<std::endl;
                 error_val = 2;
                 return nullptr;
             }
-            if(result != EXPR_INT_LITERAL && result != EXPR_FP_LITERAL){
-                std::cerr<<"dbl: Line "<<line_num<<": type of "<<print_kind(result)<<" is not an integer or floating point value"<<std::endl;
-                error_val = 3;
-                return nullptr;
-            }
-            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL)
-                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_value > right_result->literal_value, left_result->line_num);
-            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL)
-                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_value < right_result->literal_fp_value, left_result->line_num);
-            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_INT_LITERAL)
-                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_fp_value > right_result->literal_value, left_result->line_num);
-            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_FP_LITERAL)
-                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_fp_value > right_result->literal_fp_value, left_result->line_num);
-			break;
+            left_result->kind = EXPR_BOOL_LITERAL;
+            delete right_result;
+            return_expr = left_result;
         case EXPR_GTE:
             if(left_result == nullptr || right_result == nullptr) return nullptr;
             result = match_type(left_result, right_result);
-            if(result == EXPR_NOT_MATCH) {
-                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<"are not compatible"<<std::endl;
+            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                left_result->literal_value = left_result->literal_value >= right_result->literal_value;
+            }
+            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL){
+                left_result->literal_value = left_result->literal_value >= right_result->literal_value;
+            }
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                left_result->literal_value = left_result->literal_value >= right_result->literal_value;
+            }
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_FP_LITERAL){
+                left_result->literal_value = left_result->literal_value >= right_result->literal_value;
+            }
+            else {
+                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<" are not compatible for greater than or equal"<<std::endl;
                 error_val = 2;
                 return nullptr;
             }
-            if(result != EXPR_INT_LITERAL && result != EXPR_FP_LITERAL){
-                std::cerr<<"dbl: Line "<<line_num<<": type of "<<print_kind(result)<<" is not an integer or floating point value"<<std::endl;
-                error_val = 3;
-                return nullptr;
-            }
-            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL)
-                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_value <= right_result->literal_value, left_result->line_num);
-            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL)
-                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_value <= right_result->literal_fp_value, left_result->line_num);
-            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_INT_LITERAL)
-                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_fp_value <= right_result->literal_value, left_result->line_num);
-            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_FP_LITERAL)
-                return_expr = new Expr(EXPR_BOOL_LITERAL, left_result->literal_fp_value <= right_result->literal_fp_value, left_result->line_num);
+            left_result->kind = EXPR_BOOL_LITERAL;
+            delete right_result;
+            return_expr = left_result;
 			break;
         case EXPR_EXP:
             if(right_result == nullptr || left_result == nullptr) return nullptr;
-            result = match_type(left_result, right_result);
-            if(result == EXPR_NOT_MATCH) {
-                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<"are not compatible"<<std::endl;
+            if(left_result == nullptr || right_result == nullptr) return nullptr;
+            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                left_result->literal_value = (int) std::pow(left_result->literal_value, right_result->literal_value);
+            }
+            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL){
+                left_result->kind = EXPR_FP_LITERAL;
+                left_result->literal_fp_value = std::pow(left_result->literal_value, right_result->literal_fp_value);
+            }
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_INT_LITERAL){
+                left_result->kind = EXPR_FP_LITERAL;
+                left_result->literal_fp_value = std::pow(left_result->literal_fp_value, right_result->literal_value);
+            }
+            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_FP_LITERAL){
+                left_result->kind = EXPR_FP_LITERAL;
+                left_result->literal_fp_value = std::pow(left_result->literal_fp_value, right_result->literal_fp_value);
+            }
+            else {
+                std::cerr<<"dbl: Line "<<line_num<<": types "<<print_kind(left_result->kind)<<" and "<<print_kind(right_result->kind)<<"are not compatible for exponent operations"<<std::endl;
                 error_val = 2;
                 return nullptr;
             }
-            if(result != EXPR_INT_LITERAL && result != EXPR_FP_LITERAL){
-                std::cerr<<"dbl: Line "<<line_num<<": type of "<<print_kind(result)<<" is not an integer or floating point value"<<std::endl;
-                error_val = 3;
-                return nullptr;
-            }
-            if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_INT_LITERAL){
-                return_expr = new Expr(result, (int) std::pow(left_result->literal_value, right_result->literal_value), left_result->line_num);
-            }
-            else if(left_result->kind == EXPR_INT_LITERAL && right_result->kind == EXPR_FP_LITERAL)
-                return_expr = new Expr(result, std::pow(left_result->literal_value, right_result->literal_fp_value), left_result->line_num);
-            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_INT_LITERAL)
-                return_expr = new Expr(result, std::pow(left_result->literal_fp_value, right_result->literal_value), left_result->line_num);
-            else if(left_result->kind == EXPR_FP_LITERAL && right_result->kind == EXPR_FP_LITERAL)
-                return_expr = new Expr(result, std::pow(left_result->literal_fp_value, right_result->literal_fp_value), left_result->line_num);
+            delete right_result;
+            return_expr = left_result;
             break;
         case EXPR_NOT:
             if(right_result == nullptr) return nullptr;
-            if(right_result->kind != EXPR_BOOL_LITERAL) {
+            if(right_result->kind == EXPR_BOOL_LITERAL){
+                right_result->literal_value = !right_result->literal_value;
+            }
+            else {
                 std::cerr<<"dbl: Line "<<line_num<<": type "<<print_kind(right_result->kind)<<" is not a boolean"<<std::endl;
                 error_val = 2;
                 return nullptr;
             }
-            return_expr = new Expr(EXPR_BOOL_LITERAL, !right_result->literal_value, right_result->line_num);
+            return_expr = right_result;
 			break;
         case EXPR_NEG:
             if(right_result == nullptr) return nullptr;
@@ -771,7 +812,8 @@ Expr * Expr::evaluate(SymbolTable *table){
                 error_val = 2;
                 return nullptr;
             }
-            return_expr = new Expr(right_result->kind, -(right_result->literal_value), right_result->line_num);
+            right_result->literal_value = -(right_result->literal_value);
+            return_expr = right_result;
 			break;
         case EXPR_INC:
 			break;
@@ -842,26 +884,6 @@ Expr * Expr::evaluate(SymbolTable *table){
             if(left_result->kind == EXPR_LIST){
                 list_item *item = left_result->list.at(left_result->size - 1 - right_result->literal_value);
                 return_expr = new Expr(item->e->evaluate(table));
-                /*switch(item->t){
-                    case INT:
-                        std::cout<<"int"<<std::endl;
-                        return_expr = new Expr(EXPR_INT_LITERAL, item->e->literal_value, line_num);
-                        break;
-                    case STR:
-                        std::cout<<"str"<<std::endl;
-                        return_expr = new Expr(EXPR_STRING_LITERAL, item->e->string_literal, line_num);
-                        break;
-                    case BOOL:
-                        std::cout<<"bool"<<std::endl;
-                        return_expr = new Expr(EXPR_BOOL_LITERAL, item->e->literal_value, line_num);
-                        break;
-                    case OTHER:
-                        std::cout<<"other"<<std::endl;
-                        return_expr = new Expr(item->e);
-                        break;
-                    default:
-                        break;
-                }*/
             }
             else{
                 std::string r = std::string(1, left_result->string_literal.at(right_result->literal_value));
@@ -870,7 +892,7 @@ Expr * Expr::evaluate(SymbolTable *table){
             break;
         case EXPR_PART_EVAL:
             if(right_result == nullptr) return nullptr;
-            return_expr = new Expr(right_result);
+            return_expr = right_result;
             break;
         case EXPR_PROP:
             if(left_result == nullptr) return nullptr;
@@ -885,9 +907,7 @@ Expr * Expr::evaluate(SymbolTable *table){
             }
             break;
         case EXPR_LIST:
-            /*if(left_result == nullptr) return nullptr;
-            return left_result;*/
-            return new Expr(this);
+            return_expr = this;
             break;
         case EXPR_LIST_ITEM:
             {
@@ -916,7 +936,7 @@ Expr * Expr::evaluate(SymbolTable *table){
                     return_expr->size = 0;
                 }
                 else {
-                    return_expr = new Expr(right_result);
+                    return_expr = right_result;
                 }
                 return_expr->list.push_back(item);
                 return_expr->size++;
@@ -939,7 +959,5 @@ Expr * Expr::evaluate(SymbolTable *table){
         default:
             break;
     }
-    if(left_result) delete left_result;
-    if(right_result) delete right_result;
     return return_expr;
 }

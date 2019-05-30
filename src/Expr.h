@@ -88,6 +88,7 @@ class Expr {
 		Expr *left;
 		Expr *right;
 		Type *type;
+		Symbol *saved_sym;
 		int size;
 		std::string name; 
 		int literal_value;
